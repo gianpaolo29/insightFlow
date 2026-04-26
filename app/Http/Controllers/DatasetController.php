@@ -22,58 +22,89 @@ class DatasetController extends Controller
         $page = (int) $request->query('page', 1);
         $perPage = 10;
         $datasets = Dataset::latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+        $allDatasets = Dataset::orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('datasets/upload', [
             'datasets' => $datasets,
+            'allDatasets' => $allDatasets,
         ]);
     }
 
     public function upload(Request $request): RedirectResponse
     {
         $request->validate([
-            'file' => ['required', File::types(['csv', 'xlsx', 'xls'])->max(10 * 1024)],
+            'files' => ['required', 'array', 'min:1'],
+            'files.*' => ['required', File::types(['csv', 'xlsx', 'xls'])->max(10 * 1024)],
             'name' => ['required', 'string', 'max:255'],
         ]);
 
-        $file = $request->file('file');
-        $path = $file->store('datasets', 'local');
-        $extension = strtolower($file->getClientOriginalExtension());
+        $files = $request->file('files');
+        $createdDatasets = [];
 
-        $import = new DatasetImport;
+        foreach ($files as $file) {
+            $path = $file->store('datasets', 'local');
+            $extension = strtolower($file->getClientOriginalExtension());
 
-        try {
-            Excel::import($import, $file);
-        } catch (\Exception $e) {
-            return redirect()->back()
-                ->with('toast', ['type' => 'error', 'message' => 'Failed to read the file. Please ensure it is a valid CSV or Excel file.']);
+            $import = new DatasetImport;
+
+            try {
+                Excel::import($import, $file);
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            $data = $import->data;
+            $headers = $import->headers;
+
+            if (empty($headers) || empty($data)) {
+                continue;
+            }
+
+            $profile = $this->generateProfile($headers, $data);
+
+            $datasetName = count($files) > 1
+                ? $request->input('name').' - '.pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)
+                : $request->input('name');
+
+            $createdDatasets[] = Dataset::create([
+                'name' => $datasetName,
+                'original_filename' => $file->getClientOriginalName(),
+                'file_path' => $path,
+                'file_type' => $extension,
+                'row_count' => count($data),
+                'column_count' => count($headers),
+                'headers' => $headers,
+                'original_data' => $data,
+                'cleaned_data' => null,
+                'cleaning_log' => null,
+                'profile' => $profile,
+            ]);
         }
 
-        $data = $import->data;
-        $headers = $import->headers;
-
-        if (empty($headers) || empty($data)) {
+        if (empty($createdDatasets)) {
             return redirect()->back()
-                ->with('toast', ['type' => 'error', 'message' => 'The file appears to be empty or has no valid data.']);
+                ->with('toast', ['type' => 'error', 'message' => 'No valid files could be processed.']);
         }
 
-        $profile = $this->generateProfile($headers, $data);
+        // Auto-relate datasets uploaded together
+        if (count($createdDatasets) > 1) {
+            $first = $createdDatasets[0];
+            for ($i = 1; $i < count($createdDatasets); $i++) {
+                $first->relatedDatasets()->attach($createdDatasets[$i]->id, [
+                    'type' => 'related',
+                    'description' => 'Uploaded together',
+                ]);
+            }
+        }
 
-        $dataset = Dataset::create([
-            'name' => $request->input('name'),
-            'original_filename' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'file_type' => $extension,
-            'row_count' => count($data),
-            'column_count' => count($headers),
-            'headers' => $headers,
-            'original_data' => $data,
-            'cleaned_data' => null,
-            'cleaning_log' => null,
-            'profile' => $profile,
-        ]);
+        $lastDataset = end($createdDatasets);
+        $count = count($createdDatasets);
+        $message = $count === 1
+            ? 'Dataset uploaded successfully.'
+            : "{$count} datasets uploaded and linked successfully.";
 
-        return redirect()->route('datasets.show', $dataset)
-            ->with('toast', ['type' => 'success', 'message' => 'Dataset uploaded successfully.']);
+        return redirect()->route('datasets.show', $lastDataset)
+            ->with('toast', ['type' => 'success', 'message' => $message]);
     }
 
     public function show(Dataset $dataset, Request $request): Response
@@ -81,6 +112,7 @@ class DatasetController extends Controller
         $page = (int) $request->query('page', 1);
         $perPage = 10;
         $datasets = Dataset::latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+        $allDatasets = Dataset::orderBy('name')->get(['id', 'name']);
 
         // Paginate the data preview
         $allData = $dataset->original_data;
@@ -98,9 +130,31 @@ class DatasetController extends Controller
             'last_page' => (int) ceil($totalDataRows / $dataPerPage),
         ];
 
+        // Load relationships
+        $dataset->load(['relatedDatasets:id,name,file_type,row_count,column_count', 'parentDatasets:id,name,file_type,row_count,column_count']);
+        $datasetForView['related_datasets'] = $dataset->relatedDatasets->map(fn ($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'file_type' => $d->file_type,
+            'row_count' => $d->row_count,
+            'column_count' => $d->column_count,
+            'type' => $d->pivot->type,
+            'description' => $d->pivot->description,
+        ]);
+        $datasetForView['parent_datasets'] = $dataset->parentDatasets->map(fn ($d) => [
+            'id' => $d->id,
+            'name' => $d->name,
+            'file_type' => $d->file_type,
+            'row_count' => $d->row_count,
+            'column_count' => $d->column_count,
+            'type' => $d->pivot->type,
+            'description' => $d->pivot->description,
+        ]);
+
         return Inertia::render('datasets/upload', [
             'datasets' => $datasets,
             'dataset' => $datasetForView,
+            'allDatasets' => $allDatasets,
         ]);
     }
 
@@ -110,6 +164,41 @@ class DatasetController extends Controller
 
         return redirect()->route('datasets.index')
             ->with('toast', ['type' => 'success', 'message' => 'Dataset deleted.']);
+    }
+
+    public function addRelationship(Request $request, Dataset $dataset): RedirectResponse
+    {
+        $request->validate([
+            'related_dataset_id' => ['required', 'integer', 'exists:datasets,id', 'different:dataset'],
+            'type' => ['required', 'string', 'in:related,derived,merged,subset'],
+            'description' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $relatedId = (int) $request->input('related_dataset_id');
+
+        // Prevent duplicate relationships
+        if ($dataset->relatedDatasets()->where('child_dataset_id', $relatedId)->exists()
+            || $dataset->parentDatasets()->where('parent_dataset_id', $relatedId)->exists()) {
+            return redirect()->back()
+                ->with('toast', ['type' => 'error', 'message' => 'This relationship already exists.']);
+        }
+
+        $dataset->relatedDatasets()->attach($relatedId, [
+            'type' => $request->input('type'),
+            'description' => $request->input('description'),
+        ]);
+
+        return redirect()->back()
+            ->with('toast', ['type' => 'success', 'message' => 'Relationship added successfully.']);
+    }
+
+    public function removeRelationship(Dataset $dataset, Dataset $related): RedirectResponse
+    {
+        $dataset->relatedDatasets()->detach($related->id);
+        $dataset->parentDatasets()->detach($related->id);
+
+        return redirect()->back()
+            ->with('toast', ['type' => 'success', 'message' => 'Relationship removed.']);
     }
 
     public function profile(Dataset $dataset): Response

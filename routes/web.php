@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetController;
 use App\Http\Controllers\Teams\TeamInvitationController;
 use Illuminate\Support\Facades\Route;
@@ -8,10 +7,11 @@ use Laravel\Fortify\Features;
 
 // InsightFlow - Data Cleaning & Analytics (no auth required)
 Route::get('/', [DatasetController::class, 'index'])->name('datasets.index');
-Route::get('/dashboard', DashboardController::class)->name('dashboard');
 Route::post('/datasets/upload', [DatasetController::class, 'upload'])->name('datasets.upload');
 Route::get('/datasets/{dataset}', [DatasetController::class, 'show'])->name('datasets.show');
 Route::delete('/datasets/{dataset}', [DatasetController::class, 'destroy'])->name('datasets.destroy');
+Route::post('/datasets/{dataset}/relationships', [DatasetController::class, 'addRelationship'])->name('datasets.add-relationship');
+Route::delete('/datasets/{dataset}/relationships/{related}', [DatasetController::class, 'removeRelationship'])->name('datasets.remove-relationship');
 Route::get('/datasets/{dataset}/profile', [DatasetController::class, 'profile'])->name('datasets.profile');
 Route::get('/datasets/{dataset}/clean', [DatasetController::class, 'clean'])->name('datasets.clean');
 Route::post('/datasets/{dataset}/clean', [DatasetController::class, 'applyClean'])->name('datasets.apply-clean');

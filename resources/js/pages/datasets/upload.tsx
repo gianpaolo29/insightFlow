@@ -1,6 +1,21 @@
 import { Link, router, useForm } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, Database, FileUp, Trash2, Upload } from 'lucide-react';
-import { type FormEvent, useRef } from 'react';
+import {
+    BarChart3,
+    ChevronLeft,
+    ChevronRight,
+    Database,
+    FileUp,
+    GitCompareArrows,
+    Lightbulb,
+    Link2,
+    Plus,
+    Sparkles,
+    Trash2,
+    Upload,
+    Wrench,
+    X,
+} from 'lucide-react';
+import { type FormEvent, useRef, useState } from 'react';
 import Swal from 'sweetalert2';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -49,6 +64,16 @@ type DataPagination = {
     last_page: number;
 };
 
+type RelatedDataset = {
+    id: number;
+    name: string;
+    file_type: string;
+    row_count: number;
+    column_count: number;
+    type: string;
+    description: string | null;
+};
+
 type DatasetDetail = {
     id: number;
     name: string;
@@ -58,24 +83,91 @@ type DatasetDetail = {
     row_count: number;
     column_count: number;
     data_pagination?: DataPagination;
+    related_datasets?: RelatedDataset[];
+    parent_datasets?: RelatedDataset[];
+};
+
+type SimpleDataset = {
+    id: number;
+    name: string;
 };
 
 type Props = {
     datasets: PaginatedData;
     dataset?: DatasetDetail;
+    allDatasets?: SimpleDataset[];
 };
 
-export default function UploadPage({ datasets, dataset }: Props) {
+const features = [
+    {
+        icon: Upload,
+        title: 'Multi-File Upload',
+        description: 'Upload multiple CSV or Excel files at once and auto-link them.',
+        gradient: 'from-blue-500 to-indigo-600',
+    },
+    {
+        icon: Wrench,
+        title: 'Data Cleaning',
+        description: 'Auto-clean or manually apply 7+ cleaning operations.',
+        gradient: 'from-violet-500 to-purple-600',
+    },
+    {
+        icon: Lightbulb,
+        title: 'Smart Analysis',
+        description: 'Anomaly detection, correlations, and trend discovery.',
+        gradient: 'from-amber-500 to-orange-600',
+    },
+    {
+        icon: BarChart3,
+        title: 'Visualization',
+        description: 'Create interactive charts and visual insights.',
+        gradient: 'from-emerald-500 to-teal-600',
+    },
+    {
+        icon: Link2,
+        title: 'File Relationships',
+        description: 'Link related datasets and track data lineage.',
+        gradient: 'from-rose-500 to-pink-600',
+    },
+    {
+        icon: GitCompareArrows,
+        title: 'Merge & Compare',
+        description: 'Merge datasets with joins and compare before/after cleaning.',
+        gradient: 'from-cyan-500 to-blue-600',
+    },
+];
+
+const relationshipTypes = [
+    { value: 'related', label: 'Related' },
+    { value: 'derived', label: 'Derived From' },
+    { value: 'merged', label: 'Merged' },
+    { value: 'subset', label: 'Subset' },
+];
+
+export default function UploadPage({ datasets, dataset, allDatasets = [] }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const { data, setData, post, processing, errors, reset } = useForm<{
         name: string;
-        file: File | null;
+        files: File[];
     }>({
         name: '',
-        file: null,
+        files: [],
     });
 
     const deleteForm = useForm({});
+
+    const relationshipForm = useForm<{
+        related_dataset_id: string;
+        type: string;
+        description: string;
+    }>({
+        related_dataset_id: '',
+        type: 'related',
+        description: '',
+    });
+
+    const [showRelationshipForm, setShowRelationshipForm] = useState(false);
 
     function confirmDelete(datasetId: number) {
         Swal.fire({
@@ -92,16 +184,59 @@ export default function UploadPage({ datasets, dataset }: Props) {
         });
     }
 
+    function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
+        const files = Array.from(e.target.files ?? []);
+        setSelectedFiles(files);
+        setData('files', files);
+    }
+
+    function removeFile(index: number) {
+        const newFiles = selectedFiles.filter((_, i) => i !== index);
+        setSelectedFiles(newFiles);
+        setData('files', newFiles);
+        if (fileRef.current) {
+            fileRef.current.value = '';
+        }
+    }
+
     function handleSubmit(e: FormEvent) {
         e.preventDefault();
         post('/datasets/upload', {
             forceFormData: true,
             onSuccess: () => {
                 reset();
+                setSelectedFiles([]);
                 if (fileRef.current) {
                     fileRef.current.value = '';
                 }
             },
+        });
+    }
+
+    function handleAddRelationship(e: FormEvent) {
+        e.preventDefault();
+        if (!dataset) return;
+        relationshipForm.post(`/datasets/${dataset.id}/relationships`, {
+            onSuccess: () => {
+                relationshipForm.reset();
+                setShowRelationshipForm(false);
+            },
+        });
+    }
+
+    function handleRemoveRelationship(relatedId: number) {
+        if (!dataset) return;
+        Swal.fire({
+            title: 'Remove Relationship?',
+            text: 'This will unlink the datasets.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, remove it',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(`/datasets/${dataset.id}/relationships/${relatedId}`);
+            }
         });
     }
 
@@ -139,11 +274,76 @@ export default function UploadPage({ datasets, dataset }: Props) {
           )
         : 0;
 
+    const allRelationships = [
+        ...(dataset?.related_datasets ?? []),
+        ...(dataset?.parent_datasets ?? []),
+    ];
+
+    const availableForRelationship = allDatasets.filter(
+        (d) =>
+            d.id !== dataset?.id &&
+            !allRelationships.some((r) => r.id === d.id),
+    );
+
     return (
         <DatasetLayout breadcrumbs={[{ title: 'Upload', href: '/' }]}>
             <div className="flex flex-col gap-4 p-4 sm:gap-6 sm:p-6">
+                {/* System Overview */}
+                {!dataset && (
+                    <FadeIn>
+                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-violet-600 p-6 text-primary-foreground shadow-lg shadow-primary/20 sm:p-8">
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_50%)]" />
+                            <div className="relative">
+                                <div className="mb-2 flex items-center gap-2">
+                                    <Sparkles className="size-5" />
+                                    <span className="text-sm font-medium opacity-90">
+                                        InsightFlow
+                                    </span>
+                                </div>
+                                <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
+                                    Your Data Analytics Platform
+                                </h1>
+                                <p className="max-w-2xl text-sm opacity-80">
+                                    Upload datasets, clean and transform your data, discover hidden patterns,
+                                    link related files, and create stunning visualizations — all in one place.
+                                </p>
+                            </div>
+                        </div>
+                    </FadeIn>
+                )}
+
+                {/* Features Grid */}
+                {!dataset && (
+                    <FadeIn delay={0.1}>
+                        <StaggerContainer className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                            {features.map((feature) => {
+                                const Icon = feature.icon;
+                                return (
+                                    <StaggerItem key={feature.title}>
+                                        <Card className="border-border/60 transition-all hover:border-primary/30 hover:shadow-md">
+                                            <CardContent className="p-4">
+                                                <div
+                                                    className={`mb-2 inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${feature.gradient} text-white shadow-sm`}
+                                                >
+                                                    <Icon className="size-4" />
+                                                </div>
+                                                <h3 className="text-sm font-semibold">
+                                                    {feature.title}
+                                                </h3>
+                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                    {feature.description}
+                                                </p>
+                                            </CardContent>
+                                        </Card>
+                                    </StaggerItem>
+                                );
+                            })}
+                        </StaggerContainer>
+                    </FadeIn>
+                )}
+
                 {/* Upload Form */}
-                <FadeIn delay={0.05}>
+                <FadeIn delay={dataset ? 0.05 : 0.2}>
                     <Card className="overflow-hidden">
                         <div className="h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
                         <CardHeader className="px-4 pb-4 sm:px-6">
@@ -154,69 +354,265 @@ export default function UploadPage({ datasets, dataset }: Props) {
                                 Upload Dataset
                             </CardTitle>
                             <CardDescription>
-                                Upload a CSV or Excel file to begin your data
-                                analysis workflow.
+                                Upload one or more CSV/Excel files to begin your data analysis workflow.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="px-4 sm:px-6">
                             <form
                                 onSubmit={handleSubmit}
-                                className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                                className="flex flex-col gap-4"
                             >
-                                <div className="min-w-0 flex-1">
-                                    <Label htmlFor="name">Dataset Name</Label>
-                                    <Input
-                                        id="name"
-                                        value={data.name}
-                                        onChange={(e) =>
-                                            setData('name', e.target.value)
-                                        }
-                                        placeholder="My Dataset"
-                                        className="mt-1"
-                                    />
-                                    {errors.name && (
-                                        <p className="mt-1 text-sm text-destructive">
-                                            {errors.name}
-                                        </p>
-                                    )}
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+                                    <div className="min-w-0 flex-1">
+                                        <Label htmlFor="name">Dataset Name</Label>
+                                        <Input
+                                            id="name"
+                                            value={data.name}
+                                            onChange={(e) =>
+                                                setData('name', e.target.value)
+                                            }
+                                            placeholder="My Dataset"
+                                            className="mt-1"
+                                        />
+                                        {errors.name && (
+                                            <p className="mt-1 text-sm text-destructive">
+                                                {errors.name}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                        <Label htmlFor="files">Files (CSV, XLSX) — select multiple</Label>
+                                        <Input
+                                            ref={fileRef}
+                                            id="files"
+                                            type="file"
+                                            accept=".csv,.xlsx,.xls"
+                                            multiple
+                                            onChange={handleFilesChange}
+                                            className="mt-1"
+                                        />
+                                        {errors.files && (
+                                            <p className="mt-1 text-sm text-destructive">
+                                                {errors.files}
+                                            </p>
+                                        )}
+                                        {(errors as Record<string, string>)['files.0'] && (
+                                            <p className="mt-1 text-sm text-destructive">
+                                                {(errors as Record<string, string>)['files.0']}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <Button
+                                        type="submit"
+                                        disabled={processing}
+                                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md transition-shadow hover:from-blue-600 hover:to-purple-700 hover:shadow-lg sm:w-auto"
+                                    >
+                                        <Upload className="size-4" />
+                                        {processing ? 'Uploading...' : 'Upload'}
+                                    </Button>
                                 </div>
-                                <div className="min-w-0 flex-1">
-                                    <Label htmlFor="file">File (CSV, XLSX)</Label>
-                                    <Input
-                                        ref={fileRef}
-                                        id="file"
-                                        type="file"
-                                        accept=".csv,.xlsx,.xls"
-                                        onChange={(e) =>
-                                            setData(
-                                                'file',
-                                                e.target.files?.[0] ?? null,
-                                            )
-                                        }
-                                        className="mt-1"
-                                    />
-                                    {errors.file && (
-                                        <p className="mt-1 text-sm text-destructive">
-                                            {errors.file}
-                                        </p>
-                                    )}
-                                </div>
-                                <Button
-                                    type="submit"
-                                    disabled={processing}
-                                    className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md transition-shadow hover:from-blue-600 hover:to-purple-700 hover:shadow-lg sm:w-auto"
-                                >
-                                    <Upload className="size-4" />
-                                    {processing ? 'Uploading...' : 'Upload'}
-                                </Button>
+
+                                {/* Selected Files Preview */}
+                                {selectedFiles.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedFiles.map((file, index) => (
+                                            <div
+                                                key={index}
+                                                className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs"
+                                            >
+                                                <FileUp className="size-3 text-muted-foreground" />
+                                                <span className="max-w-[200px] truncate">
+                                                    {file.name}
+                                                </span>
+                                                <span className="text-muted-foreground">
+                                                    ({(file.size / 1024).toFixed(0)} KB)
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFile(index)}
+                                                    className="ml-0.5 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                                                >
+                                                    <X className="size-3" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        <span className="self-center text-xs text-muted-foreground">
+                                            {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                                        </span>
+                                    </div>
+                                )}
                             </form>
                         </CardContent>
                     </Card>
                 </FadeIn>
 
+                {/* Dataset Relationships */}
+                {dataset && (
+                    <FadeIn delay={0.1}>
+                        <Card>
+                            <CardHeader className="px-4 sm:px-6">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <CardTitle className="flex items-center gap-2">
+                                            <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 text-white">
+                                                <Link2 className="size-3.5" />
+                                            </div>
+                                            Linked Datasets
+                                        </CardTitle>
+                                        <CardDescription>
+                                            Datasets related to <span className="font-medium">{dataset.name}</span>
+                                        </CardDescription>
+                                    </div>
+                                    {availableForRelationship.length > 0 && (
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => setShowRelationshipForm(!showRelationshipForm)}
+                                        >
+                                            <Plus className="size-3.5" />
+                                            Link Dataset
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent className="px-4 sm:px-6">
+                                {/* Add Relationship Form */}
+                                {showRelationshipForm && (
+                                    <form
+                                        onSubmit={handleAddRelationship}
+                                        className="mb-4 rounded-lg border border-dashed p-4"
+                                    >
+                                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                            <div className="min-w-0 flex-1">
+                                                <Label htmlFor="related_dataset_id">Dataset</Label>
+                                                <select
+                                                    id="related_dataset_id"
+                                                    value={relationshipForm.data.related_dataset_id}
+                                                    onChange={(e) =>
+                                                        relationshipForm.setData('related_dataset_id', e.target.value)
+                                                    }
+                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                >
+                                                    <option value="">Select a dataset...</option>
+                                                    {availableForRelationship.map((d) => (
+                                                        <option key={d.id} value={d.id}>
+                                                            {d.name}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="w-full sm:w-40">
+                                                <Label htmlFor="rel_type">Type</Label>
+                                                <select
+                                                    id="rel_type"
+                                                    value={relationshipForm.data.type}
+                                                    onChange={(e) =>
+                                                        relationshipForm.setData('type', e.target.value)
+                                                    }
+                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                >
+                                                    {relationshipTypes.map((rt) => (
+                                                        <option key={rt.value} value={rt.value}>
+                                                            {rt.label}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <Label htmlFor="rel_description">Description (optional)</Label>
+                                                <Input
+                                                    id="rel_description"
+                                                    value={relationshipForm.data.description}
+                                                    onChange={(e) =>
+                                                        relationshipForm.setData('description', e.target.value)
+                                                    }
+                                                    placeholder="e.g., Same survey data"
+                                                    className="mt-1"
+                                                />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    type="submit"
+                                                    size="sm"
+                                                    disabled={relationshipForm.processing}
+                                                    className="bg-gradient-to-r from-rose-500 to-pink-600 text-white"
+                                                >
+                                                    <Plus className="size-3.5" />
+                                                    Link
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => setShowRelationshipForm(false)}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </div>
+                                        {relationshipForm.errors.related_dataset_id && (
+                                            <p className="mt-2 text-sm text-destructive">
+                                                {relationshipForm.errors.related_dataset_id}
+                                            </p>
+                                        )}
+                                    </form>
+                                )}
+
+                                {/* Relationships List */}
+                                {allRelationships.length > 0 ? (
+                                    <StaggerContainer className="flex flex-col gap-2">
+                                        {allRelationships.map((rel) => (
+                                            <StaggerItem key={rel.id}>
+                                                <div className="flex items-center justify-between rounded-lg border p-3 transition-colors hover:bg-muted/30">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                                                            <Database className="size-4 text-primary" />
+                                                        </div>
+                                                        <div>
+                                                            <Link
+                                                                href={`/datasets/${rel.id}`}
+                                                                className="text-sm font-medium text-primary hover:underline"
+                                                            >
+                                                                {rel.name}
+                                                            </Link>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <Badge variant="secondary" className="text-[10px]">
+                                                                    {rel.type}
+                                                                </Badge>
+                                                                <span>
+                                                                    {rel.row_count} rows &middot; {rel.column_count} cols
+                                                                </span>
+                                                                {rel.description && (
+                                                                    <span>&middot; {rel.description}</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleRemoveRelationship(rel.id)}
+                                                        className="text-muted-foreground hover:text-destructive"
+                                                    >
+                                                        <X className="size-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </StaggerItem>
+                                        ))}
+                                    </StaggerContainer>
+                                ) : (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">
+                                        No linked datasets yet. Upload multiple files together or link them manually.
+                                    </p>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </FadeIn>
+                )}
+
                 {/* Existing Datasets */}
                 {datasetsList.length > 0 ? (
-                    <FadeIn delay={0.15}>
+                    <FadeIn delay={dataset ? 0.15 : 0.3}>
                         <Card>
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle>Your Datasets</CardTitle>
@@ -476,7 +872,7 @@ export default function UploadPage({ datasets, dataset }: Props) {
                     </FadeIn>
                 ) : (
                     /* Empty state when no datasets exist */
-                    <FadeInScale delay={0.2}>
+                    <FadeInScale delay={0.35}>
                         <Card className="border-dashed">
                             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                                 <motion.div

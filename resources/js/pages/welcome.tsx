@@ -7,7 +7,7 @@ import {
     Sparkles,
     Wrench,
 } from 'lucide-react';
-import { dashboard, login, register } from '@/routes';
+import { login, register } from '@/routes';
 import AppLogoIcon from '@/components/app-logo-icon';
 
 const features = [
@@ -47,7 +47,7 @@ export default function Welcome({
     canRegister?: boolean;
 }) {
     const { auth, currentTeam } = usePage().props;
-    const dashboardUrl = currentTeam ? dashboard(currentTeam.slug) : '/';
+    const homeUrl = '/';
 
     return (
         <>
@@ -78,7 +78,7 @@ export default function Welcome({
                         <div className="flex items-center gap-3">
                             {auth.user ? (
                                 <Link
-                                    href={dashboardUrl}
+                                    href={homeUrl}
                                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md"
                                 >
                                     Dashboard
@@ -127,7 +127,7 @@ export default function Welcome({
                         <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
                             {auth.user ? (
                                 <Link
-                                    href={dashboardUrl}
+                                    href={homeUrl}
                                     className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground shadow-lg shadow-primary/25 transition-all hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/30"
                                 >
                                     Go to Dashboard

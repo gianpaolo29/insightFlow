@@ -21,7 +21,22 @@
       "Bash(composer show:*)",
       "Bash(composer remove:*)",
       "Bash(ls -la /c/Users/Windows/Herd/InsightFlow/*.md)",
-      "Bash(grep -l \"dark\" /c/Users/Windows/Herd/InsightFlow/resources/js/components/ui/*.tsx)"
+      "Bash(grep -l \"dark\" /c/Users/Windows/Herd/InsightFlow/resources/js/components/ui/*.tsx)",
+      "Bash(mkdir -p .git/refs/heads)",
+      "Bash(mkdir -p .git/refs/tags)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(wc:*)",
+      "Bash(herd php:*)",
+      "Read(//c/Users/Windows/AppData/Local/Programs/Herd/resources/**)",
+      "Bash(where herd:*)",
+      "Bash(herd.bat php:list)",
+      "Bash(herd list:*)",
+      "Bash(php84 artisan:*)",
+      "Bash(C:/Users/Windows/.config/herd/bin/php84 artisan:*)",
+      "Bash(C:/Users/Windows/.config/herd/bin/php84/php.exe artisan:*)",
+      "Bash(C:/Users/Windows/.config/herd/bin/php84/php.exe:*)",
+      "Bash(\"C:/Users/Windows/.config/herd/bin/php84/php.exe\" artisan:*)"
     ]
   },
   "disabledMcpjsonServers": [

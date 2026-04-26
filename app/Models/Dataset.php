@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\DatasetFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Dataset extends Model
 {
@@ -24,6 +25,26 @@ class Dataset extends Model
         'cleaning_log',
         'profile',
     ];
+
+    /**
+     * @return BelongsToMany<self, $this>
+     */
+    public function relatedDatasets(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'dataset_relationships', 'parent_dataset_id', 'child_dataset_id')
+            ->withPivot('type', 'description')
+            ->withTimestamps();
+    }
+
+    /**
+     * @return BelongsToMany<self, $this>
+     */
+    public function parentDatasets(): BelongsToMany
+    {
+        return $this->belongsToMany(self::class, 'dataset_relationships', 'child_dataset_id', 'parent_dataset_id')
+            ->withPivot('type', 'description')
+            ->withTimestamps();
+    }
 
     /**
      * @return array<string, string>
