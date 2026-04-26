@@ -3,7 +3,10 @@ import { useEffect } from 'react';
 import Swal from 'sweetalert2';
 import type { FlashToast } from '@/types/ui';
 
-const iconMap: Record<FlashToast['type'], 'success' | 'info' | 'warning' | 'error'> = {
+const iconMap: Record<
+    FlashToast['type'],
+    'success' | 'info' | 'warning' | 'error'
+> = {
     success: 'success',
     info: 'info',
     warning: 'warning',

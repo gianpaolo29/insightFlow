@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
     AlertTriangle,
     BarChart3,
@@ -7,7 +6,7 @@ import {
     TrendingDown,
     TrendingUp,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { useState } from 'react';
 import {
     AnimatedCard,
     FadeIn,
@@ -15,6 +14,7 @@ import {
     StaggerContainer,
     StaggerItem,
 } from '@/components/ui/animations';
+import { Badge } from '@/components/ui/badge';
 import {
     Card,
     CardContent,
@@ -246,74 +246,70 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                 <tbody>
                                                     {Object.entries(
                                                         selectedFrequentValues,
-                                                    ).map(
-                                                        ([value, count]) => {
-                                                            const maxCount =
-                                                                Math.max(
-                                                                    ...Object.values(
-                                                                        selectedFrequentValues,
-                                                                    ),
-                                                                );
-                                                            const percentage =
-                                                                maxCount > 0
-                                                                    ? (count /
-                                                                          maxCount) *
-                                                                      100
-                                                                    : 0;
-
-                                                            return (
-                                                                <motion.tr
-                                                                    key={value}
-                                                                    className="border-t transition-colors hover:bg-indigo-50/30 dark:hover:bg-indigo-950/10"
-                                                                    initial={{
-                                                                        opacity: 0,
-                                                                        x: -10,
-                                                                    }}
-                                                                    animate={{
-                                                                        opacity: 1,
-                                                                        x: 0,
-                                                                    }}
-                                                                    transition={{
-                                                                        duration: 0.3,
-                                                                        ease: 'easeOut',
-                                                                    }}
-                                                                >
-                                                                    <td className="px-3 py-2 font-medium">
-                                                                        {value}
-                                                                    </td>
-                                                                    <td className="px-3 py-2">
-                                                                        <Badge
-                                                                            variant="secondary"
-                                                                            className="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
-                                                                        >
-                                                                            {
-                                                                                count
-                                                                            }
-                                                                        </Badge>
-                                                                    </td>
-                                                                    <td className="px-3 py-2">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <div className="h-2 w-full max-w-[200px] rounded-full bg-slate-100 dark:bg-slate-800">
-                                                                                <motion.div
-                                                                                    className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                                                                                    initial={{
-                                                                                        width: 0,
-                                                                                    }}
-                                                                                    animate={{
-                                                                                        width: `${percentage}%`,
-                                                                                    }}
-                                                                                    transition={{
-                                                                                        duration: 0.6,
-                                                                                        ease: 'easeOut',
-                                                                                    }}
-                                                                                />
-                                                                            </div>
-                                                                        </div>
-                                                                    </td>
-                                                                </motion.tr>
+                                                    ).map(([value, count]) => {
+                                                        const maxCount =
+                                                            Math.max(
+                                                                ...Object.values(
+                                                                    selectedFrequentValues,
+                                                                ),
                                                             );
-                                                        },
-                                                    )}
+                                                        const percentage =
+                                                            maxCount > 0
+                                                                ? (count /
+                                                                      maxCount) *
+                                                                  100
+                                                                : 0;
+
+                                                        return (
+                                                            <motion.tr
+                                                                key={value}
+                                                                className="border-t transition-colors hover:bg-indigo-50/30 dark:hover:bg-indigo-950/10"
+                                                                initial={{
+                                                                    opacity: 0,
+                                                                    x: -10,
+                                                                }}
+                                                                animate={{
+                                                                    opacity: 1,
+                                                                    x: 0,
+                                                                }}
+                                                                transition={{
+                                                                    duration: 0.3,
+                                                                    ease: 'easeOut',
+                                                                }}
+                                                            >
+                                                                <td className="px-3 py-2 font-medium">
+                                                                    {value}
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <Badge
+                                                                        variant="secondary"
+                                                                        className="bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+                                                                    >
+                                                                        {count}
+                                                                    </Badge>
+                                                                </td>
+                                                                <td className="px-3 py-2">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="h-2 w-full max-w-[200px] rounded-full bg-slate-100 dark:bg-slate-800">
+                                                                            <motion.div
+                                                                                className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
+                                                                                initial={{
+                                                                                    width: 0,
+                                                                                }}
+                                                                                animate={{
+                                                                                    width: `${percentage}%`,
+                                                                                }}
+                                                                                transition={{
+                                                                                    duration: 0.6,
+                                                                                    ease: 'easeOut',
+                                                                                }}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </motion.tr>
+                                                        );
+                                                    })}
                                                 </tbody>
                                             </table>
                                         </div>
@@ -321,7 +317,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                 )}
 
                                 {!selectedColumn && (
-                                    <p className="text-muted-foreground py-4 text-center text-sm">
+                                    <p className="py-4 text-center text-sm text-muted-foreground">
                                         Choose a column above to view its value
                                         distribution.
                                     </p>
@@ -356,7 +352,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                         'increasing'
                                                             ? 'border-green-200 shadow-[0_0_12px_-3px_rgba(34,197,94,0.3)] dark:border-green-800 dark:shadow-[0_0_12px_-3px_rgba(34,197,94,0.2)]'
                                                             : trend.direction ===
-                                                              'decreasing'
+                                                                'decreasing'
                                                               ? 'border-red-200 shadow-[0_0_12px_-3px_rgba(239,68,68,0.3)] dark:border-red-800 dark:shadow-[0_0_12px_-3px_rgba(239,68,68,0.2)]'
                                                               : 'border-border'
                                                     }`}
@@ -372,7 +368,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                             <TrendingDown className="size-5 text-red-600 dark:text-red-400" />
                                                         </div>
                                                     ) : (
-                                                        <div className="bg-muted size-10 shrink-0 rounded-full" />
+                                                        <div className="size-10 shrink-0 rounded-full bg-muted" />
                                                     )}
                                                     <div className="min-w-0">
                                                         <p className="truncate font-medium">
@@ -384,7 +380,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                                 'increasing'
                                                                     ? 'text-green-600 dark:text-green-400'
                                                                     : trend.direction ===
-                                                                      'decreasing'
+                                                                        'decreasing'
                                                                       ? 'text-red-600 dark:text-red-400'
                                                                       : 'text-muted-foreground'
                                                             }`}
@@ -437,7 +433,10 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Badge
-                                                        className={getCorrelationColor(corr.coefficient, corr.strength)}
+                                                        className={getCorrelationColor(
+                                                            corr.coefficient,
+                                                            corr.strength,
+                                                        )}
                                                     >
                                                         {corr.coefficient > 0
                                                             ? '+'
@@ -446,7 +445,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                             3,
                                                         )}
                                                     </Badge>
-                                                    <span className="text-muted-foreground text-xs">
+                                                    <span className="text-xs text-muted-foreground">
                                                         {corr.strength}
                                                     </span>
                                                 </div>
@@ -477,65 +476,66 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                         <tbody>
                                             {sortedCorrelations.map(
                                                 (corr, i) => (
-                                                        <motion.tr
-                                                            key={i}
-                                                            className="border-t transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-950/10"
-                                                            initial={{
-                                                                opacity: 0,
-                                                                x: -10,
-                                                            }}
-                                                            animate={{
-                                                                opacity: 1,
-                                                                x: 0,
-                                                            }}
-                                                            transition={{
-                                                                duration: 0.4,
-                                                                delay: i * 0.05,
-                                                                ease: 'easeOut',
-                                                            }}
-                                                        >
-                                                            <td className="px-3 py-2 font-medium text-blue-600 dark:text-blue-400">
-                                                                {corr.column_a}
-                                                            </td>
-                                                            <td className="px-3 py-2 font-medium text-blue-600 dark:text-blue-400">
-                                                                {corr.column_b}
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <Badge
-                                                                    className={getCorrelationColor(corr.coefficient, corr.strength)}
-                                                                >
-                                                                    {corr.coefficient >
-                                                                    0
-                                                                        ? '+'
-                                                                        : ''}
-                                                                    {corr.coefficient.toFixed(
-                                                                        3,
-                                                                    )}
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <span
-                                                                    className={`text-xs font-medium ${
-                                                                        corr.strength ===
-                                                                            'Very strong' ||
-                                                                        corr.strength ===
-                                                                            'Strong'
-                                                                            ? corr.coefficient >=
-                                                                              0
-                                                                                ? 'text-green-600 dark:text-green-400'
-                                                                                : 'text-red-600 dark:text-red-400'
-                                                                            : corr.strength ===
-                                                                                'Moderate'
-                                                                              ? 'text-amber-600 dark:text-amber-400'
-                                                                              : 'text-muted-foreground'
-                                                                    }`}
-                                                                >
-                                                                    {
-                                                                        corr.strength
-                                                                    }
-                                                                </span>
-                                                            </td>
-                                                        </motion.tr>
+                                                    <motion.tr
+                                                        key={i}
+                                                        className="border-t transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-950/10"
+                                                        initial={{
+                                                            opacity: 0,
+                                                            x: -10,
+                                                        }}
+                                                        animate={{
+                                                            opacity: 1,
+                                                            x: 0,
+                                                        }}
+                                                        transition={{
+                                                            duration: 0.4,
+                                                            delay: i * 0.05,
+                                                            ease: 'easeOut',
+                                                        }}
+                                                    >
+                                                        <td className="px-3 py-2 font-medium text-blue-600 dark:text-blue-400">
+                                                            {corr.column_a}
+                                                        </td>
+                                                        <td className="px-3 py-2 font-medium text-blue-600 dark:text-blue-400">
+                                                            {corr.column_b}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Badge
+                                                                className={getCorrelationColor(
+                                                                    corr.coefficient,
+                                                                    corr.strength,
+                                                                )}
+                                                            >
+                                                                {corr.coefficient >
+                                                                0
+                                                                    ? '+'
+                                                                    : ''}
+                                                                {corr.coefficient.toFixed(
+                                                                    3,
+                                                                )}
+                                                            </Badge>
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <span
+                                                                className={`text-xs font-medium ${
+                                                                    corr.strength ===
+                                                                        'Very strong' ||
+                                                                    corr.strength ===
+                                                                        'Strong'
+                                                                        ? corr.coefficient >=
+                                                                          0
+                                                                            ? 'text-green-600 dark:text-green-400'
+                                                                            : 'text-red-600 dark:text-red-400'
+                                                                        : corr.strength ===
+                                                                            'Moderate'
+                                                                          ? 'text-amber-600 dark:text-amber-400'
+                                                                          : 'text-muted-foreground'
+                                                                }`}
+                                                            >
+                                                                {corr.strength}
+                                                            </span>
+                                                        </td>
+                                                    </motion.tr>
                                                 ),
                                             )}
                                         </tbody>
@@ -658,51 +658,51 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                             {Object.entries(
                                                 insights.summary,
                                             ).map(([col, stats], index) => (
-                                                    <motion.tr
-                                                        key={col}
-                                                        className="border-t transition-colors hover:bg-purple-50/30 dark:hover:bg-purple-950/10"
-                                                        initial={{
-                                                            opacity: 0,
-                                                            x: -10,
-                                                        }}
-                                                        animate={{
-                                                            opacity: 1,
-                                                            x: 0,
-                                                        }}
-                                                        transition={{
-                                                            duration: 0.4,
-                                                            delay: index * 0.05,
-                                                            ease: 'easeOut',
-                                                        }}
-                                                    >
-                                                        <td className="px-3 py-2 font-medium text-purple-600 dark:text-purple-400">
-                                                            {col}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.count}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.mean}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.median}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.std_dev}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.min}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.max}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.range}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {stats.sum}
-                                                        </td>
-                                                    </motion.tr>
+                                                <motion.tr
+                                                    key={col}
+                                                    className="border-t transition-colors hover:bg-purple-50/30 dark:hover:bg-purple-950/10"
+                                                    initial={{
+                                                        opacity: 0,
+                                                        x: -10,
+                                                    }}
+                                                    animate={{
+                                                        opacity: 1,
+                                                        x: 0,
+                                                    }}
+                                                    transition={{
+                                                        duration: 0.4,
+                                                        delay: index * 0.05,
+                                                        ease: 'easeOut',
+                                                    }}
+                                                >
+                                                    <td className="px-3 py-2 font-medium text-purple-600 dark:text-purple-400">
+                                                        {col}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.count}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.mean}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.median}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.std_dev}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.min}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.max}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.range}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        {stats.sum}
+                                                    </td>
+                                                </motion.tr>
                                             ))}
                                         </tbody>
                                     </table>
@@ -725,77 +725,74 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                             />
                             <CardContent className="px-4 sm:px-6">
                                 <StaggerContainer className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                    {anomalyEntries.map(
-                                        ([col, anomalies]) => (
-                                            <StaggerItem key={col}>
-                                                <div className="rounded-lg border border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30 p-4 dark:border-amber-800 dark:from-amber-950/20 dark:to-orange-950/10">
-                                                    <div className="mb-3 flex items-center gap-2">
-                                                        <AlertTriangle className="size-4 text-amber-500" />
-                                                        <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                                                            {col}
-                                                        </p>
-                                                        <Badge className="ml-auto bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                                                            {anomalies.length}{' '}
-                                                            outlier
-                                                            {anomalies.length !==
-                                                            1
-                                                                ? 's'
-                                                                : ''}
-                                                        </Badge>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        {anomalies.map(
-                                                            (anomaly, i) => (
-                                                                <motion.div
-                                                                    key={i}
-                                                                    initial={{
-                                                                        opacity: 0,
-                                                                        x: -10,
-                                                                    }}
-                                                                    animate={{
-                                                                        opacity: 1,
-                                                                        x: 0,
-                                                                    }}
-                                                                    transition={{
-                                                                        duration: 0.3,
-                                                                        delay:
-                                                                            0.4 +
-                                                                            i *
-                                                                                0.05,
-                                                                        ease: 'easeOut',
-                                                                    }}
-                                                                    className="flex items-center justify-between rounded border border-amber-100 bg-white/60 px-3 py-1.5 text-sm dark:border-amber-900 dark:bg-amber-950/30"
-                                                                >
-                                                                    <div className="flex items-center gap-2">
-                                                                        <span className="font-medium text-amber-800 dark:text-amber-300">
-                                                                            {
-                                                                                anomaly.value
-                                                                            }
-                                                                        </span>
-                                                                        <span className="text-muted-foreground text-xs">
-                                                                            row{' '}
-                                                                            {
-                                                                                anomaly.row_index
-                                                                            }
-                                                                        </span>
-                                                                    </div>
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className="border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400"
-                                                                    >
-                                                                        Z:{' '}
-                                                                        {anomaly.z_score.toFixed(
-                                                                            2,
-                                                                        )}
-                                                                    </Badge>
-                                                                </motion.div>
-                                                            ),
-                                                        )}
-                                                    </div>
+                                    {anomalyEntries.map(([col, anomalies]) => (
+                                        <StaggerItem key={col}>
+                                            <div className="rounded-lg border border-amber-200 bg-gradient-to-br from-amber-50/50 to-orange-50/30 p-4 dark:border-amber-800 dark:from-amber-950/20 dark:to-orange-950/10">
+                                                <div className="mb-3 flex items-center gap-2">
+                                                    <AlertTriangle className="size-4 text-amber-500" />
+                                                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                                                        {col}
+                                                    </p>
+                                                    <Badge className="ml-auto bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                                        {anomalies.length}{' '}
+                                                        outlier
+                                                        {anomalies.length !== 1
+                                                            ? 's'
+                                                            : ''}
+                                                    </Badge>
                                                 </div>
-                                            </StaggerItem>
-                                        ),
-                                    )}
+                                                <div className="space-y-2">
+                                                    {anomalies.map(
+                                                        (anomaly, i) => (
+                                                            <motion.div
+                                                                key={i}
+                                                                initial={{
+                                                                    opacity: 0,
+                                                                    x: -10,
+                                                                }}
+                                                                animate={{
+                                                                    opacity: 1,
+                                                                    x: 0,
+                                                                }}
+                                                                transition={{
+                                                                    duration: 0.3,
+                                                                    delay:
+                                                                        0.4 +
+                                                                        i *
+                                                                            0.05,
+                                                                    ease: 'easeOut',
+                                                                }}
+                                                                className="flex items-center justify-between rounded border border-amber-100 bg-white/60 px-3 py-1.5 text-sm dark:border-amber-900 dark:bg-amber-950/30"
+                                                            >
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="font-medium text-amber-800 dark:text-amber-300">
+                                                                        {
+                                                                            anomaly.value
+                                                                        }
+                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        row{' '}
+                                                                        {
+                                                                            anomaly.row_index
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                                <Badge
+                                                                    variant="outline"
+                                                                    className="border-amber-300 text-amber-600 dark:border-amber-700 dark:text-amber-400"
+                                                                >
+                                                                    Z:{' '}
+                                                                    {anomaly.z_score.toFixed(
+                                                                        2,
+                                                                    )}
+                                                                </Badge>
+                                                            </motion.div>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </StaggerItem>
+                                    ))}
                                 </StaggerContainer>
                             </CardContent>
                         </Card>

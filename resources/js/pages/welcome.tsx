@@ -7,8 +7,8 @@ import {
     Sparkles,
     Wrench,
 } from 'lucide-react';
-import { login, register } from '@/routes';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { login, register } from '@/routes';
 
 const features = [
     {
@@ -46,7 +46,7 @@ export default function Welcome({
 }: {
     canRegister?: boolean;
 }) {
-    const { auth, currentTeam } = usePage().props;
+    const { auth } = usePage().props;
     const homeUrl = '/';
 
     return (
@@ -159,6 +159,7 @@ export default function Welcome({
                     <div className="mx-auto mt-24 grid max-w-5xl grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                         {features.map((feature) => {
                             const Icon = feature.icon;
+
                             return (
                                 <div
                                     key={feature.title}

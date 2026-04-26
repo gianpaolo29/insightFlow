@@ -50,18 +50,26 @@ type Props = {
 };
 
 const chartTypeConfig = {
-    bar: { label: 'Bar Chart', icon: BarChart3, gradient: 'from-blue-500/20 to-cyan-500/20' },
-    line: { label: 'Line Chart', icon: TrendingUp, gradient: 'from-emerald-500/20 to-teal-500/20' },
-    pie: { label: 'Pie Chart', icon: PieChart, gradient: 'from-violet-500/20 to-purple-500/20' },
+    bar: {
+        label: 'Bar Chart',
+        icon: BarChart3,
+        gradient: 'from-blue-500/20 to-cyan-500/20',
+    },
+    line: {
+        label: 'Line Chart',
+        icon: TrendingUp,
+        gradient: 'from-emerald-500/20 to-teal-500/20',
+    },
+    pie: {
+        label: 'Pie Chart',
+        icon: PieChart,
+        gradient: 'from-violet-500/20 to-purple-500/20',
+    },
 } as const;
 
 export default function VisualizePage({ dataset, data }: Props) {
-    const [labelColumn, setLabelColumn] = useState(
-        dataset.headers[0] ?? '',
-    );
-    const [valueColumn, setValueColumn] = useState(
-        dataset.headers[1] ?? '',
-    );
+    const [labelColumn, setLabelColumn] = useState(dataset.headers[0] ?? '');
+    const [valueColumn, setValueColumn] = useState(dataset.headers[1] ?? '');
     const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
     const [filterColumn, setFilterColumn] = useState('');
     const [filterValue, setFilterValue] = useState('');
@@ -70,10 +78,13 @@ export default function VisualizePage({ dataset, data }: Props) {
         if (!filterColumn || data.length === 0) {
             return [];
         }
+
         const unique = new Set<string>();
+
         for (const row of data) {
             unique.add(String(row[filterColumn] ?? ''));
         }
+
         return Array.from(unique).sort();
     }, [data, filterColumn]);
 
@@ -81,6 +92,7 @@ export default function VisualizePage({ dataset, data }: Props) {
         if (!filterColumn || !filterValue) {
             return data;
         }
+
         return data.filter(
             (row) => String(row[filterColumn] ?? '') === filterValue,
         );
@@ -92,6 +104,7 @@ export default function VisualizePage({ dataset, data }: Props) {
         }
 
         const aggregated: Record<string, number> = {};
+
         for (const row of filteredData) {
             const label = String(row[labelColumn] ?? 'Unknown');
             const val = Number(row[valueColumn]) || 0;
@@ -266,10 +279,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                                             value={chartType}
                                             onValueChange={(v) =>
                                                 setChartType(
-                                                    v as
-                                                        | 'bar'
-                                                        | 'line'
-                                                        | 'pie',
+                                                    v as 'bar' | 'line' | 'pie',
                                                 )
                                             }
                                         >
@@ -286,6 +296,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                                                     ][]
                                                 ).map(([key, config]) => {
                                                     const Icon = config.icon;
+
                                                     return (
                                                         <SelectItem
                                                             key={key}
@@ -361,7 +372,13 @@ export default function VisualizePage({ dataset, data }: Props) {
                                             disabled={!filterColumn}
                                         >
                                             <SelectTrigger className="mt-1 w-full">
-                                                <SelectValue placeholder={filterColumn ? 'Select a value' : 'Choose a column first'} />
+                                                <SelectValue
+                                                    placeholder={
+                                                        filterColumn
+                                                            ? 'Select a value'
+                                                            : 'Choose a column first'
+                                                    }
+                                                />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {filterUniqueValues.map((v) => (
@@ -431,6 +448,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                                         {(() => {
                                             const Icon =
                                                 chartTypeConfig[chartType].icon;
+
                                             return (
                                                 <Icon className="size-5 text-muted-foreground" />
                                             );

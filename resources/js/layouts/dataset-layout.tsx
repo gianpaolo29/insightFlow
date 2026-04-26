@@ -9,7 +9,8 @@ import {
     Sparkles,
     Wrench,
 } from 'lucide-react';
-import { type ReactNode, useMemo } from 'react';
+import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
@@ -43,7 +44,11 @@ const staggerContainer = {
 
 const staggerItem = {
     hidden: { opacity: 0, x: -12 },
-    visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: 'easeOut' as const } },
+    visible: {
+        opacity: 1,
+        x: 0,
+        transition: { duration: 0.35, ease: 'easeOut' as const },
+    },
 };
 
 export default function DatasetLayout({
@@ -131,7 +136,7 @@ export default function DatasetLayout({
                                         <span className="mb-0.5 truncate leading-tight font-semibold">
                                             InsightFlow
                                         </span>
-                                        <span className="text-muted-foreground truncate text-xs">
+                                        <span className="truncate text-xs text-muted-foreground">
                                             Data Analytics
                                         </span>
                                     </div>
@@ -152,6 +157,7 @@ export default function DatasetLayout({
                             <SidebarMenu>
                                 {navItems.map((item) => {
                                     const active = isCurrentUrl(item.href);
+
                                     return (
                                         <motion.div
                                             key={item.title}
@@ -234,7 +240,7 @@ export default function DatasetLayout({
                         <SidebarMenuItem>
                             <SidebarMenuButton
                                 size="sm"
-                                className="text-muted-foreground text-xs"
+                                className="text-xs text-muted-foreground"
                                 tooltip={{ children: 'InsightFlow v1.0' }}
                             >
                                 <Sparkles className="size-3" />

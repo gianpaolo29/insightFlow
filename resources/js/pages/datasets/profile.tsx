@@ -8,14 +8,6 @@ import {
     Rows3,
     Type,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     AnimatedProgressBar,
     CountUp,
@@ -24,6 +16,14 @@ import {
     StaggerItem,
     motion,
 } from '@/components/ui/animations';
+import { Badge } from '@/components/ui/badge';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import DatasetLayout from '@/layouts/dataset-layout';
 
 type ColumnProfile = {
@@ -163,6 +163,7 @@ export default function ProfilePage({ dataset }: Props) {
                 <StaggerContainer className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     {statCards.map((stat) => {
                         const Icon = stat.icon;
+
                         return (
                             <StaggerItem key={stat.label}>
                                 <Card className="relative overflow-hidden">
@@ -171,7 +172,7 @@ export default function ProfilePage({ dataset }: Props) {
                                     />
                                     <CardContent className="relative p-4 sm:pt-6">
                                         <div className="flex items-center justify-between">
-                                            <p className="text-muted-foreground text-xs sm:text-sm">
+                                            <p className="text-xs text-muted-foreground sm:text-sm">
                                                 {stat.label}
                                             </p>
                                             <div
@@ -409,6 +410,7 @@ export default function ProfilePage({ dataset }: Props) {
                                             : pct > 20
                                               ? 'bg-chart-4'
                                               : 'bg-primary';
+
                                     return (
                                         <div
                                             key={col.name}
@@ -418,13 +420,13 @@ export default function ProfilePage({ dataset }: Props) {
                                                 {col.name}
                                             </span>
                                             <div className="flex flex-1 items-center gap-2 sm:gap-4">
-                                                <div className="bg-muted h-3 flex-1 overflow-hidden rounded-full">
+                                                <div className="h-3 flex-1 overflow-hidden rounded-full bg-muted">
                                                     <AnimatedProgressBar
                                                         percentage={fillPct}
                                                         colorClass={colorClass}
                                                     />
                                                 </div>
-                                                <span className="text-muted-foreground w-24 shrink-0 text-right text-xs sm:w-28">
+                                                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground sm:w-28">
                                                     {col.missing}/{col.total} (
                                                     {pct.toFixed(1)}%)
                                                 </span>

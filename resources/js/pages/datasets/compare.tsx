@@ -67,6 +67,7 @@ export default function ComparePage({ dataset }: Props) {
             for (const h of dataset.headers) {
                 const origVal = String(original[i][h] ?? '');
                 const cleanVal = String(cleaned[i][h] ?? '');
+
                 if (origVal !== cleanVal) {
                     cellsChanged++;
                     columnsAffected.add(h);
@@ -108,8 +109,10 @@ export default function ComparePage({ dataset }: Props) {
         );
 
         const removed = new Set<number>();
+
         for (let i = 0; i < original.length; i++) {
             const key = serializeRow(original[i], dataset.headers);
+
             if (!cleanedSet.has(key)) {
                 removed.add(i);
             }
@@ -145,12 +148,12 @@ export default function ComparePage({ dataset }: Props) {
                                 ease: 'easeInOut',
                             }}
                         >
-                            <GitCompareArrows className="text-muted-foreground size-12" />
+                            <GitCompareArrows className="size-12 text-muted-foreground" />
                         </motion.div>
                         <h2 className="text-lg font-semibold">
                             No Cleaned Data Yet
                         </h2>
-                        <p className="text-muted-foreground text-center text-sm">
+                        <p className="text-center text-sm text-muted-foreground">
                             Go to the Clean tab to apply cleaning operations
                             first.
                         </p>
@@ -209,7 +212,7 @@ export default function ComparePage({ dataset }: Props) {
                         <AnimatedCard className="h-full">
                             <Card className="h-full">
                                 <CardContent className="p-4 sm:pt-6">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Original Rows
                                     </p>
                                     <p className="text-lg font-bold sm:text-2xl">
@@ -224,7 +227,7 @@ export default function ComparePage({ dataset }: Props) {
                             <Card className="relative h-full overflow-hidden">
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/5" />
                                 <CardContent className="relative p-4 sm:pt-6">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Cleaned Rows
                                     </p>
                                     <p className="text-lg font-bold text-green-600 sm:text-2xl dark:text-green-400">
@@ -239,7 +242,7 @@ export default function ComparePage({ dataset }: Props) {
                             <Card className="relative h-full overflow-hidden">
                                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-red-500/10 to-rose-500/5" />
                                 <CardContent className="relative p-4 sm:pt-6">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Rows Removed
                                     </p>
                                     <p className="text-lg font-bold text-red-600 sm:text-2xl dark:text-red-400">
@@ -273,9 +276,7 @@ export default function ComparePage({ dataset }: Props) {
                                                             ' ',
                                                         )}
                                                     </Badge>
-                                                    <span>
-                                                        {entry.message}
-                                                    </span>
+                                                    <span>{entry.message}</span>
                                                 </li>
                                             </StaggerItem>
                                         ))}
@@ -292,25 +293,24 @@ export default function ComparePage({ dataset }: Props) {
                         <CardHeader className="px-4 sm:px-6">
                             <CardTitle>Changes Summary</CardTitle>
                             <CardDescription>
-                                Overview of modifications applied during cleaning
+                                Overview of modifications applied during
+                                cleaning
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="px-4 sm:px-6">
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                 <div className="rounded-lg border p-4">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Total Cells Changed
                                     </p>
                                     <p className="text-lg font-bold sm:text-2xl">
                                         <CountUp
-                                            value={
-                                                changesSummary.cellsChanged
-                                            }
+                                            value={changesSummary.cellsChanged}
                                         />
                                     </p>
                                 </div>
                                 <div className="rounded-lg border p-4">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Data Modified
                                     </p>
                                     <p className="text-lg font-bold sm:text-2xl">
@@ -318,7 +318,7 @@ export default function ComparePage({ dataset }: Props) {
                                     </p>
                                 </div>
                                 <div className="rounded-lg border p-4">
-                                    <p className="text-muted-foreground text-xs sm:text-sm">
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
                                         Columns Affected
                                     </p>
                                     <p className="text-lg font-bold sm:text-2xl">
@@ -327,7 +327,7 @@ export default function ComparePage({ dataset }: Props) {
                                                 changesSummary.columnsAffected
                                             }
                                         />{' '}
-                                        <span className="text-muted-foreground text-sm font-normal">
+                                        <span className="text-sm font-normal text-muted-foreground">
                                             / {dataset.headers.length}
                                         </span>
                                     </p>
@@ -350,18 +350,14 @@ export default function ComparePage({ dataset }: Props) {
                             Side by Side
                         </Button>
                         <Button
-                            variant={
-                                tab === 'original' ? 'default' : 'outline'
-                            }
+                            variant={tab === 'original' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setTab('original')}
                         >
                             Original
                         </Button>
                         <Button
-                            variant={
-                                tab === 'cleaned' ? 'default' : 'outline'
-                            }
+                            variant={tab === 'cleaned' ? 'default' : 'outline'}
                             size="sm"
                             onClick={() => setTab('cleaned')}
                         >
@@ -444,7 +440,10 @@ export default function ComparePage({ dataset }: Props) {
                                         data={(tab === 'original'
                                             ? original
                                             : cleaned
-                                        ).slice(0, tab === 'original' ? 50 : 100)}
+                                        ).slice(
+                                            0,
+                                            tab === 'original' ? 50 : 100,
+                                        )}
                                         originalData={
                                             tab === 'cleaned'
                                                 ? original.slice(0, 100)
@@ -485,13 +484,13 @@ function DataTable({
             <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                     <tr>
-                        <th className="bg-muted/50 sticky left-0 px-3 py-2 text-left text-xs font-medium">
+                        <th className="sticky left-0 bg-muted/50 px-3 py-2 text-left text-xs font-medium">
                             #
                         </th>
                         {headers.map((h) => (
                             <th
                                 key={h}
-                                className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium"
+                                className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap"
                             >
                                 {h}
                             </th>
@@ -508,7 +507,7 @@ function DataTable({
                                 className={`border-t ${isRemoved ? 'bg-rose-50 dark:bg-rose-950/30' : ''}`}
                             >
                                 <td
-                                    className={`bg-background sticky left-0 px-3 py-1.5 text-xs ${isRemoved ? 'bg-rose-50 text-rose-500 line-through dark:bg-rose-950/30' : 'text-muted-foreground'}`}
+                                    className={`sticky left-0 bg-background px-3 py-1.5 text-xs ${isRemoved ? 'bg-rose-50 text-rose-500 line-through dark:bg-rose-950/30' : 'text-muted-foreground'}`}
                                 >
                                     {i + 1}
                                 </td>
@@ -518,10 +517,11 @@ function DataTable({
                                         originalData?.[i] &&
                                         String(originalData[i][h] ?? '') !==
                                             String(row[h] ?? '');
+
                                     return (
                                         <td
                                             key={h}
-                                            className={`max-w-[200px] truncate whitespace-nowrap px-3 py-1.5 ${
+                                            className={`max-w-[200px] truncate px-3 py-1.5 whitespace-nowrap ${
                                                 isRemoved
                                                     ? 'text-rose-500 line-through'
                                                     : changed

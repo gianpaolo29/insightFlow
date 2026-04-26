@@ -10,7 +10,7 @@ export default function AppLogo() {
                 <span className="mb-0.5 truncate leading-tight font-semibold">
                     InsightFlow
                 </span>
-                <span className="text-muted-foreground truncate text-xs">
+                <span className="truncate text-xs text-muted-foreground">
                     Data Analytics
                 </span>
             </div>

@@ -13,7 +13,9 @@ export function UserInfo({
 }) {
     const getInitials = useInitials();
 
-    if (!user) return null;
+    if (!user) {
+        return null;
+    }
 
     const showAvatar = Boolean(user.avatar && user.avatar !== '');
 

@@ -20,12 +20,7 @@ export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
                     <stop offset="100%" stopColor="#8b5cf6" />
                 </linearGradient>
             </defs>
-            <rect
-                width="32"
-                height="32"
-                rx="8"
-                fill="url(#logo-grad)"
-            />
+            <rect width="32" height="32" rx="8" fill="url(#logo-grad)" />
             <path
                 d="M8 22V14l4-4m0 0l4 4v8m-4-12v12m4-8l4-4m0 0l4 4v8m-4-12v12"
                 stroke="white"

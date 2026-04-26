@@ -1,7 +1,17 @@
 import { useForm } from '@inertiajs/react';
 import { AnimatePresence } from 'framer-motion';
 import { Layers, Plus, Sparkles, Trash2, Wrench } from 'lucide-react';
-import { type FormEvent, useState } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
+import {
+    AnimatedCard,
+    FadeIn,
+    FadeInScale,
+    motion,
+    PulseGlow,
+    StaggerContainer,
+    StaggerItem,
+} from '@/components/ui/animations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,15 +30,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import {
-    AnimatedCard,
-    FadeIn,
-    FadeInScale,
-    motion,
-    PulseGlow,
-    StaggerContainer,
-    StaggerItem,
-} from '@/components/ui/animations';
 import DatasetLayout from '@/layouts/dataset-layout';
 
 type Operation = {
@@ -163,10 +164,11 @@ export default function CleanPage({ dataset }: Props) {
                                 </CardTitle>
                                 <CardDescription>
                                     Automatically clean your dataset using best
-                                    practices: handle missing values (mean for numeric,
-                                    mode for categorical), remove duplicates,
-                                    standardize text, convert data types, cap outliers
-                                    using IQR, and filter invalid data.
+                                    practices: handle missing values (mean for
+                                    numeric, mode for categorical), remove
+                                    duplicates, standardize text, convert data
+                                    types, cap outliers using IQR, and filter
+                                    invalid data.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="relative px-4 sm:px-6">
@@ -218,8 +220,9 @@ export default function CleanPage({ dataset }: Props) {
                                 Manual Cleaning Pipeline
                             </CardTitle>
                             <CardDescription>
-                                Add individual cleaning operations to process your
-                                dataset. Operations run in order from top to bottom.
+                                Add individual cleaning operations to process
+                                your dataset. Operations run in order from top
+                                to bottom.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="px-4 sm:px-6">
@@ -229,9 +232,18 @@ export default function CleanPage({ dataset }: Props) {
                                         {operations.length === 0 && (
                                             <motion.div
                                                 key="empty-state"
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
+                                                initial={{
+                                                    opacity: 0,
+                                                    scale: 0.95,
+                                                }}
+                                                animate={{
+                                                    opacity: 1,
+                                                    scale: 1,
+                                                }}
+                                                exit={{
+                                                    opacity: 0,
+                                                    scale: 0.95,
+                                                }}
                                                 transition={{ duration: 0.3 }}
                                                 className="flex flex-col items-center justify-center gap-3 py-10 sm:py-14"
                                             >
@@ -248,10 +260,11 @@ export default function CleanPage({ dataset }: Props) {
                                                 >
                                                     <Layers className="size-7 text-muted-foreground" />
                                                 </motion.div>
-                                                <p className="text-muted-foreground text-center text-sm">
-                                                    No operations added yet. Click the
-                                                    button below to start building your
-                                                    cleaning pipeline.
+                                                <p className="text-center text-sm text-muted-foreground">
+                                                    No operations added yet.
+                                                    Click the button below to
+                                                    start building your cleaning
+                                                    pipeline.
                                                 </p>
                                             </motion.div>
                                         )}
@@ -259,7 +272,10 @@ export default function CleanPage({ dataset }: Props) {
                                         {operations.map((op, index) => {
                                             const meta = opMeta(op.type);
                                             const colorClass =
-                                                stepColors[index % stepColors.length];
+                                                stepColors[
+                                                    index % stepColors.length
+                                                ];
+
                                             return (
                                                 <motion.div
                                                     key={index}
@@ -276,7 +292,9 @@ export default function CleanPage({ dataset }: Props) {
                                                         opacity: 0,
                                                         height: 0,
                                                     }}
-                                                    transition={{ duration: 0.3 }}
+                                                    transition={{
+                                                        duration: 0.3,
+                                                    }}
                                                     className="overflow-hidden"
                                                 >
                                                     <div className="flex flex-col gap-3 rounded-lg border p-3 sm:p-4">
@@ -322,7 +340,9 @@ export default function CleanPage({ dataset }: Props) {
                                                                     Operation
                                                                 </Label>
                                                                 <Select
-                                                                    value={op.type}
+                                                                    value={
+                                                                        op.type
+                                                                    }
                                                                     onValueChange={(
                                                                         v,
                                                                     ) =>
@@ -339,7 +359,9 @@ export default function CleanPage({ dataset }: Props) {
                                                                     </SelectTrigger>
                                                                     <SelectContent>
                                                                         {operationTypes.map(
-                                                                            (ot) => (
+                                                                            (
+                                                                                ot,
+                                                                            ) => (
                                                                                 <SelectItem
                                                                                     key={
                                                                                         ot.value
@@ -410,7 +432,8 @@ export default function CleanPage({ dataset }: Props) {
                                                                 'fill_missing' && (
                                                                 <div>
                                                                     <Label>
-                                                                        Fill Value
+                                                                        Fill
+                                                                        Value
                                                                     </Label>
                                                                     <Input
                                                                         value={
@@ -439,7 +462,8 @@ export default function CleanPage({ dataset }: Props) {
                                                                 'convert_type' && (
                                                                 <div>
                                                                     <Label>
-                                                                        Target Type
+                                                                        Target
+                                                                        Type
                                                                     </Label>
                                                                     <Select
                                                                         value={
@@ -648,7 +672,7 @@ export default function CleanPage({ dataset }: Props) {
                                             {dataset.headers.map((h) => (
                                                 <th
                                                     key={h}
-                                                    className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium"
+                                                    className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap"
                                                 >
                                                     {h}
                                                 </th>
@@ -659,20 +683,29 @@ export default function CleanPage({ dataset }: Props) {
                                         {dataset.original_data
                                             .slice(0, 50)
                                             .map((row, i) => (
-                                                <tr key={i} className="border-t">
-                                                    <td className="text-muted-foreground sticky left-0 bg-background px-3 py-1.5 text-xs">
+                                                <tr
+                                                    key={i}
+                                                    className="border-t"
+                                                >
+                                                    <td className="sticky left-0 bg-background px-3 py-1.5 text-xs text-muted-foreground">
                                                         {i + 1}
                                                     </td>
-                                                    {dataset.headers.map((h) => (
-                                                        <td
-                                                            key={h}
-                                                            className="max-w-[200px] truncate whitespace-nowrap px-3 py-1.5"
-                                                        >
-                                                            {row[h] != null
-                                                                ? String(row[h])
-                                                                : ''}
-                                                        </td>
-                                                    ))}
+                                                    {dataset.headers.map(
+                                                        (h) => (
+                                                            <td
+                                                                key={h}
+                                                                className="max-w-[200px] truncate px-3 py-1.5 whitespace-nowrap"
+                                                            >
+                                                                {row[h] != null
+                                                                    ? String(
+                                                                          row[
+                                                                              h
+                                                                          ],
+                                                                      )
+                                                                    : ''}
+                                                            </td>
+                                                        ),
+                                                    )}
                                                 </tr>
                                             ))}
                                     </tbody>

@@ -15,8 +15,17 @@ import {
     Wrench,
     X,
 } from 'lucide-react';
-import { type FormEvent, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import Swal from 'sweetalert2';
+import {
+    AnimatedCard,
+    FadeIn,
+    FadeInScale,
+    motion,
+    StaggerContainer,
+    StaggerItem,
+} from '@/components/ui/animations';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,14 +37,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    AnimatedCard,
-    FadeIn,
-    FadeInScale,
-    motion,
-    StaggerContainer,
-    StaggerItem,
-} from '@/components/ui/animations';
 import DatasetLayout from '@/layouts/dataset-layout';
 
 type DatasetSummary = {
@@ -102,7 +103,8 @@ const features = [
     {
         icon: Upload,
         title: 'Multi-File Upload',
-        description: 'Upload multiple CSV or Excel files at once and auto-link them.',
+        description:
+            'Upload multiple CSV or Excel files at once and auto-link them.',
         gradient: 'from-blue-500 to-indigo-600',
     },
     {
@@ -132,7 +134,8 @@ const features = [
     {
         icon: GitCompareArrows,
         title: 'Merge & Compare',
-        description: 'Merge datasets with joins and compare before/after cleaning.',
+        description:
+            'Merge datasets with joins and compare before/after cleaning.',
         gradient: 'from-cyan-500 to-blue-600',
     },
 ];
@@ -144,7 +147,11 @@ const relationshipTypes = [
     { value: 'subset', label: 'Subset' },
 ];
 
-export default function UploadPage({ datasets, dataset, allDatasets = [] }: Props) {
+export default function UploadPage({
+    datasets,
+    dataset,
+    allDatasets = [],
+}: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const { data, setData, post, processing, errors, reset } = useForm<{
@@ -194,6 +201,7 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
         const newFiles = selectedFiles.filter((_, i) => i !== index);
         setSelectedFiles(newFiles);
         setData('files', newFiles);
+
         if (fileRef.current) {
             fileRef.current.value = '';
         }
@@ -206,6 +214,7 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
             onSuccess: () => {
                 reset();
                 setSelectedFiles([]);
+
                 if (fileRef.current) {
                     fileRef.current.value = '';
                 }
@@ -215,7 +224,11 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
 
     function handleAddRelationship(e: FormEvent) {
         e.preventDefault();
-        if (!dataset) return;
+
+        if (!dataset) {
+            return;
+        }
+
         relationshipForm.post(`/datasets/${dataset.id}/relationships`, {
             onSuccess: () => {
                 relationshipForm.reset();
@@ -225,7 +238,10 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
     }
 
     function handleRemoveRelationship(relatedId: number) {
-        if (!dataset) return;
+        if (!dataset) {
+            return;
+        }
+
         Swal.fire({
             title: 'Remove Relationship?',
             text: 'This will unlink the datasets.',
@@ -235,7 +251,9 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
             confirmButtonText: 'Yes, remove it',
         }).then((result) => {
             if (result.isConfirmed) {
-                router.delete(`/datasets/${dataset.id}/relationships/${relatedId}`);
+                router.delete(
+                    `/datasets/${dataset.id}/relationships/${relatedId}`,
+                );
             }
         });
     }
@@ -304,8 +322,10 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     Your Data Analytics Platform
                                 </h1>
                                 <p className="max-w-2xl text-sm opacity-80">
-                                    Upload datasets, clean and transform your data, discover hidden patterns,
-                                    link related files, and create stunning visualizations — all in one place.
+                                    Upload datasets, clean and transform your
+                                    data, discover hidden patterns, link related
+                                    files, and create stunning visualizations —
+                                    all in one place.
                                 </p>
                             </div>
                         </div>
@@ -318,6 +338,7 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                         <StaggerContainer className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {features.map((feature) => {
                                 const Icon = feature.icon;
+
                                 return (
                                     <StaggerItem key={feature.title}>
                                         <Card className="border-border/60 transition-all hover:border-primary/30 hover:shadow-md">
@@ -354,7 +375,8 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                 Upload Dataset
                             </CardTitle>
                             <CardDescription>
-                                Upload one or more CSV/Excel files to begin your data analysis workflow.
+                                Upload one or more CSV/Excel files to begin your
+                                data analysis workflow.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="px-4 sm:px-6">
@@ -364,7 +386,9 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                             >
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
                                     <div className="min-w-0 flex-1">
-                                        <Label htmlFor="name">Dataset Name</Label>
+                                        <Label htmlFor="name">
+                                            Dataset Name
+                                        </Label>
                                         <Input
                                             id="name"
                                             value={data.name}
@@ -381,7 +405,9 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                         )}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <Label htmlFor="files">Files (CSV, XLSX) — select multiple</Label>
+                                        <Label htmlFor="files">
+                                            Files (CSV, XLSX) — select multiple
+                                        </Label>
                                         <Input
                                             ref={fileRef}
                                             id="files"
@@ -396,9 +422,18 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                 {errors.files}
                                             </p>
                                         )}
-                                        {(errors as Record<string, string>)['files.0'] && (
+                                        {(errors as Record<string, string>)[
+                                            'files.0'
+                                        ] && (
                                             <p className="mt-1 text-sm text-destructive">
-                                                {(errors as Record<string, string>)['files.0']}
+                                                {
+                                                    (
+                                                        errors as Record<
+                                                            string,
+                                                            string
+                                                        >
+                                                    )['files.0']
+                                                }
                                             </p>
                                         )}
                                     </div>
@@ -425,11 +460,17 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     {file.name}
                                                 </span>
                                                 <span className="text-muted-foreground">
-                                                    ({(file.size / 1024).toFixed(0)} KB)
+                                                    (
+                                                    {(file.size / 1024).toFixed(
+                                                        0,
+                                                    )}{' '}
+                                                    KB)
                                                 </span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => removeFile(index)}
+                                                    onClick={() =>
+                                                        removeFile(index)
+                                                    }
                                                     className="ml-0.5 rounded-full p-0.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                                                 >
                                                     <X className="size-3" />
@@ -437,7 +478,11 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                             </div>
                                         ))}
                                         <span className="self-center text-xs text-muted-foreground">
-                                            {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                                            {selectedFiles.length} file
+                                            {selectedFiles.length > 1
+                                                ? 's'
+                                                : ''}{' '}
+                                            selected
                                         </span>
                                     </div>
                                 )}
@@ -460,14 +505,21 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                             Linked Datasets
                                         </CardTitle>
                                         <CardDescription>
-                                            Datasets related to <span className="font-medium">{dataset.name}</span>
+                                            Datasets related to{' '}
+                                            <span className="font-medium">
+                                                {dataset.name}
+                                            </span>
                                         </CardDescription>
                                     </div>
                                     {availableForRelationship.length > 0 && (
                                         <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => setShowRelationshipForm(!showRelationshipForm)}
+                                            onClick={() =>
+                                                setShowRelationshipForm(
+                                                    !showRelationshipForm,
+                                                )
+                                            }
                                         >
                                             <Plus className="size-3.5" />
                                             Link Dataset
@@ -484,47 +536,83 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     >
                                         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                             <div className="min-w-0 flex-1">
-                                                <Label htmlFor="related_dataset_id">Dataset</Label>
+                                                <Label htmlFor="related_dataset_id">
+                                                    Dataset
+                                                </Label>
                                                 <select
                                                     id="related_dataset_id"
-                                                    value={relationshipForm.data.related_dataset_id}
-                                                    onChange={(e) =>
-                                                        relationshipForm.setData('related_dataset_id', e.target.value)
+                                                    value={
+                                                        relationshipForm.data
+                                                            .related_dataset_id
                                                     }
-                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                    onChange={(e) =>
+                                                        relationshipForm.setData(
+                                                            'related_dataset_id',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                                 >
-                                                    <option value="">Select a dataset...</option>
-                                                    {availableForRelationship.map((d) => (
-                                                        <option key={d.id} value={d.id}>
-                                                            {d.name}
-                                                        </option>
-                                                    ))}
+                                                    <option value="">
+                                                        Select a dataset...
+                                                    </option>
+                                                    {availableForRelationship.map(
+                                                        (d) => (
+                                                            <option
+                                                                key={d.id}
+                                                                value={d.id}
+                                                            >
+                                                                {d.name}
+                                                            </option>
+                                                        ),
+                                                    )}
                                                 </select>
                                             </div>
                                             <div className="w-full sm:w-40">
-                                                <Label htmlFor="rel_type">Type</Label>
+                                                <Label htmlFor="rel_type">
+                                                    Type
+                                                </Label>
                                                 <select
                                                     id="rel_type"
-                                                    value={relationshipForm.data.type}
-                                                    onChange={(e) =>
-                                                        relationshipForm.setData('type', e.target.value)
+                                                    value={
+                                                        relationshipForm.data
+                                                            .type
                                                     }
-                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                    onChange={(e) =>
+                                                        relationshipForm.setData(
+                                                            'type',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
                                                 >
-                                                    {relationshipTypes.map((rt) => (
-                                                        <option key={rt.value} value={rt.value}>
-                                                            {rt.label}
-                                                        </option>
-                                                    ))}
+                                                    {relationshipTypes.map(
+                                                        (rt) => (
+                                                            <option
+                                                                key={rt.value}
+                                                                value={rt.value}
+                                                            >
+                                                                {rt.label}
+                                                            </option>
+                                                        ),
+                                                    )}
                                                 </select>
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <Label htmlFor="rel_description">Description (optional)</Label>
+                                                <Label htmlFor="rel_description">
+                                                    Description (optional)
+                                                </Label>
                                                 <Input
                                                     id="rel_description"
-                                                    value={relationshipForm.data.description}
+                                                    value={
+                                                        relationshipForm.data
+                                                            .description
+                                                    }
                                                     onChange={(e) =>
-                                                        relationshipForm.setData('description', e.target.value)
+                                                        relationshipForm.setData(
+                                                            'description',
+                                                            e.target.value,
+                                                        )
                                                     }
                                                     placeholder="e.g., Same survey data"
                                                     className="mt-1"
@@ -534,7 +622,9 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                 <Button
                                                     type="submit"
                                                     size="sm"
-                                                    disabled={relationshipForm.processing}
+                                                    disabled={
+                                                        relationshipForm.processing
+                                                    }
                                                     className="bg-gradient-to-r from-rose-500 to-pink-600 text-white"
                                                 >
                                                     <Plus className="size-3.5" />
@@ -544,15 +634,23 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     type="button"
                                                     variant="ghost"
                                                     size="sm"
-                                                    onClick={() => setShowRelationshipForm(false)}
+                                                    onClick={() =>
+                                                        setShowRelationshipForm(
+                                                            false,
+                                                        )
+                                                    }
                                                 >
                                                     Cancel
                                                 </Button>
                                             </div>
                                         </div>
-                                        {relationshipForm.errors.related_dataset_id && (
+                                        {relationshipForm.errors
+                                            .related_dataset_id && (
                                             <p className="mt-2 text-sm text-destructive">
-                                                {relationshipForm.errors.related_dataset_id}
+                                                {
+                                                    relationshipForm.errors
+                                                        .related_dataset_id
+                                                }
                                             </p>
                                         )}
                                     </form>
@@ -576,14 +674,30 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                                 {rel.name}
                                                             </Link>
                                                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <Badge variant="secondary" className="text-[10px]">
+                                                                <Badge
+                                                                    variant="secondary"
+                                                                    className="text-[10px]"
+                                                                >
                                                                     {rel.type}
                                                                 </Badge>
                                                                 <span>
-                                                                    {rel.row_count} rows &middot; {rel.column_count} cols
+                                                                    {
+                                                                        rel.row_count
+                                                                    }{' '}
+                                                                    rows
+                                                                    &middot;{' '}
+                                                                    {
+                                                                        rel.column_count
+                                                                    }{' '}
+                                                                    cols
                                                                 </span>
                                                                 {rel.description && (
-                                                                    <span>&middot; {rel.description}</span>
+                                                                    <span>
+                                                                        &middot;{' '}
+                                                                        {
+                                                                            rel.description
+                                                                        }
+                                                                    </span>
                                                                 )}
                                                             </div>
                                                         </div>
@@ -591,7 +705,11 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => handleRemoveRelationship(rel.id)}
+                                                        onClick={() =>
+                                                            handleRemoveRelationship(
+                                                                rel.id,
+                                                            )
+                                                        }
                                                         className="text-muted-foreground hover:text-destructive"
                                                     >
                                                         <X className="size-3.5" />
@@ -602,7 +720,8 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     </StaggerContainer>
                                 ) : (
                                     <p className="py-6 text-center text-sm text-muted-foreground">
-                                        No linked datasets yet. Upload multiple files together or link them manually.
+                                        No linked datasets yet. Upload multiple
+                                        files together or link them manually.
                                     </p>
                                 )}
                             </CardContent>
@@ -626,18 +745,22 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     {datasetsList.map((ds) => (
                                         <StaggerItem key={ds.id}>
                                             <motion.div
-                                                whileHover={{ scale: 1.02, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}
+                                                whileHover={{
+                                                    scale: 1.02,
+                                                    boxShadow:
+                                                        '0 4px 20px rgba(0,0,0,0.08)',
+                                                }}
                                                 transition={{ duration: 0.2 }}
                                                 className="flex items-start justify-between rounded-lg border p-3"
                                             >
                                                 <div className="min-w-0 flex-1">
                                                     <Link
                                                         href={`/datasets/${ds.id}`}
-                                                        className="text-primary font-medium hover:underline"
+                                                        className="font-medium text-primary hover:underline"
                                                     >
                                                         {ds.name}
                                                     </Link>
-                                                    <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                                                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
                                                         {ds.original_filename}
                                                     </p>
                                                     <div className="mt-1.5 flex items-center gap-2">
@@ -647,9 +770,11 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                         >
                                                             {ds.file_type.toUpperCase()}
                                                         </Badge>
-                                                        <span className="text-muted-foreground text-xs">
-                                                            {ds.row_count} rows &middot;{' '}
-                                                            {ds.column_count} cols
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {ds.row_count} rows
+                                                            &middot;{' '}
+                                                            {ds.column_count}{' '}
+                                                            cols
                                                         </span>
                                                     </div>
                                                 </div>
@@ -715,82 +840,96 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                 hidden: { opacity: 0 },
                                                 visible: {
                                                     opacity: 1,
-                                                    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+                                                    transition: {
+                                                        staggerChildren: 0.06,
+                                                        delayChildren: 0.1,
+                                                    },
                                                 },
                                             }}
                                         >
-                                                {datasetsList.map((ds) => (
-                                                    <motion.tr
-                                                        key={ds.id}
-                                                        variants={{
-                                                            hidden: { opacity: 0, y: 10 },
-                                                            visible: { opacity: 1, y: 0 },
-                                                        }}
-                                                        whileHover={{
-                                                            scale: 1.01,
-                                                            boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                                                        }}
-                                                        transition={{ duration: 0.2 }}
-                                                        className="border-b last:border-0"
-                                                    >
-                                                            <td className="px-3 py-2">
+                                            {datasetsList.map((ds) => (
+                                                <motion.tr
+                                                    key={ds.id}
+                                                    variants={{
+                                                        hidden: {
+                                                            opacity: 0,
+                                                            y: 10,
+                                                        },
+                                                        visible: {
+                                                            opacity: 1,
+                                                            y: 0,
+                                                        },
+                                                    }}
+                                                    whileHover={{
+                                                        scale: 1.01,
+                                                        boxShadow:
+                                                            '0 2px 12px rgba(0,0,0,0.06)',
+                                                    }}
+                                                    transition={{
+                                                        duration: 0.2,
+                                                    }}
+                                                    className="border-b last:border-0"
+                                                >
+                                                    <td className="px-3 py-2">
+                                                        <Link
+                                                            href={`/datasets/${ds.id}`}
+                                                            className="font-medium text-primary hover:underline"
+                                                        >
+                                                            {ds.name}
+                                                        </Link>
+                                                    </td>
+                                                    <td className="max-w-[200px] truncate px-3 py-2 text-muted-foreground">
+                                                        {ds.original_filename}
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/40 dark:to-purple-950/40"
+                                                        >
+                                                            {ds.file_type.toUpperCase()}
+                                                        </Badge>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:from-emerald-950/40 dark:to-teal-950/40 dark:text-emerald-400">
+                                                            {ds.row_count}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-50 to-orange-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:from-amber-950/40 dark:to-orange-950/40 dark:text-amber-400">
+                                                            {ds.column_count}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="flex items-center gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                asChild
+                                                            >
                                                                 <Link
-                                                                    href={`/datasets/${ds.id}`}
-                                                                    className="text-primary font-medium hover:underline"
+                                                                    href={`/datasets/${ds.id}/profile`}
                                                                 >
-                                                                    {ds.name}
+                                                                    View
                                                                 </Link>
-                                                            </td>
-                                                            <td className="text-muted-foreground max-w-[200px] truncate px-3 py-2">
-                                                                {ds.original_filename}
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/40 dark:to-purple-950/40"
-                                                                >
-                                                                    {ds.file_type.toUpperCase()}
-                                                                </Badge>
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-emerald-50 to-teal-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:from-emerald-950/40 dark:to-teal-950/40 dark:text-emerald-400">
-                                                                    {ds.row_count}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <span className="inline-flex items-center rounded-full bg-gradient-to-r from-amber-50 to-orange-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:from-amber-950/40 dark:to-orange-950/40 dark:text-amber-400">
-                                                                    {ds.column_count}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-3 py-2">
-                                                                <div className="flex items-center gap-2">
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        asChild
-                                                                    >
-                                                                        <Link
-                                                                            href={`/datasets/${ds.id}/profile`}
-                                                                        >
-                                                                            View
-                                                                        </Link>
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="destructive"
-                                                                        size="sm"
-                                                                        onClick={() =>
-                                                                            confirmDelete(ds.id)
-                                                                        }
-                                                                        disabled={
-                                                                            deleteForm.processing
-                                                                        }
-                                                                    >
-                                                                        <Trash2 className="size-3" />
-                                                                    </Button>
-                                                                </div>
-                                                            </td>
-                                                    </motion.tr>
-                                                ))}
+                                                            </Button>
+                                                            <Button
+                                                                variant="destructive"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    confirmDelete(
+                                                                        ds.id,
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    deleteForm.processing
+                                                                }
+                                                            >
+                                                                <Trash2 className="size-3" />
+                                                            </Button>
+                                                        </div>
+                                                    </td>
+                                                </motion.tr>
+                                            ))}
                                         </motion.tbody>
                                     </table>
                                 </div>
@@ -798,22 +937,30 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                 {/* Datasets list pagination */}
                                 {datasets.last_page > 1 && (
                                     <div className="mt-4 flex items-center justify-between border-t pt-4">
-                                        <p className="text-muted-foreground text-sm">
-                                            Showing {datasetsFrom} to {datasetsTo} of{' '}
-                                            {datasets.total} datasets
+                                        <p className="text-sm text-muted-foreground">
+                                            Showing {datasetsFrom} to{' '}
+                                            {datasetsTo} of {datasets.total}{' '}
+                                            datasets
                                         </p>
                                         <div className="flex items-center gap-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                disabled={datasets.current_page <= 1}
-                                                asChild={datasets.current_page > 1}
+                                                disabled={
+                                                    datasets.current_page <= 1
+                                                }
+                                                asChild={
+                                                    datasets.current_page > 1
+                                                }
                                             >
                                                 {datasets.current_page > 1 ? (
                                                     <Link
                                                         href={
                                                             datasets.links.find(
-                                                                (l) => l.label.includes('Previous'),
+                                                                (l) =>
+                                                                    l.label.includes(
+                                                                        'Previous',
+                                                                    ),
                                                             )?.url ?? '#'
                                                         }
                                                         preserveState
@@ -828,7 +975,7 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     </>
                                                 )}
                                             </Button>
-                                            <span className="text-muted-foreground text-sm">
+                                            <span className="text-sm text-muted-foreground">
                                                 Page {datasets.current_page} of{' '}
                                                 {datasets.last_page}
                                             </span>
@@ -849,7 +996,10 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     <Link
                                                         href={
                                                             datasets.links.find(
-                                                                (l) => l.label.includes('Next'),
+                                                                (l) =>
+                                                                    l.label.includes(
+                                                                        'Next',
+                                                                    ),
                                                             )?.url ?? '#'
                                                         }
                                                         preserveState
@@ -900,9 +1050,10 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     initial={{ opacity: 0, y: 10 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.55, duration: 0.4 }}
-                                    className="text-muted-foreground mt-1 max-w-sm text-sm"
+                                    className="mt-1 max-w-sm text-sm text-muted-foreground"
                                 >
-                                    Upload your first CSV or Excel file above to get started with data analysis.
+                                    Upload your first CSV or Excel file above to
+                                    get started with data analysis.
                                 </motion.p>
                             </CardContent>
                         </Card>
@@ -920,14 +1071,15 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                 <CardDescription>
                                     {dataPagination ? (
                                         <>
-                                            Showing rows {dataFrom} to {dataTo} of{' '}
-                                            {dataPagination.total},{' '}
+                                            Showing rows {dataFrom} to {dataTo}{' '}
+                                            of {dataPagination.total},{' '}
                                             {dataset.column_count} columns
                                         </>
                                     ) : (
                                         <>
-                                            Showing {Math.min(displayData.length, 100)} of{' '}
-                                            {dataset.row_count} rows,{' '}
+                                            Showing{' '}
+                                            {Math.min(displayData.length, 100)}{' '}
+                                            of {dataset.row_count} rows,{' '}
                                             {dataset.column_count} columns
                                         </>
                                     )}
@@ -945,7 +1097,7 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                     {displayHeaders.map((h) => (
                                                         <th
                                                             key={h}
-                                                            className="whitespace-nowrap px-3 py-2 text-left text-xs font-medium"
+                                                            className="px-3 py-2 text-left text-xs font-medium whitespace-nowrap"
                                                         >
                                                             {h}
                                                         </th>
@@ -960,18 +1112,21 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                                             key={i}
                                                             className="border-t transition-colors hover:bg-muted/30"
                                                         >
-                                                            <td className="text-muted-foreground sticky left-0 bg-background px-3 py-1.5 text-xs">
+                                                            <td className="sticky left-0 bg-background px-3 py-1.5 text-xs text-muted-foreground">
                                                                 {dataPagination
-                                                                    ? dataFrom + i
+                                                                    ? dataFrom +
+                                                                      i
                                                                     : i + 1}
                                                             </td>
                                                             {displayHeaders.map(
                                                                 (h) => (
                                                                     <td
                                                                         key={h}
-                                                                        className="max-w-[200px] truncate whitespace-nowrap px-3 py-1.5"
+                                                                        className="max-w-[200px] truncate px-3 py-1.5 whitespace-nowrap"
                                                                     >
-                                                                        {row[h] !=
+                                                                        {row[
+                                                                            h
+                                                                        ] !=
                                                                         null
                                                                             ? String(
                                                                                   row[
@@ -989,51 +1144,62 @@ export default function UploadPage({ datasets, dataset, allDatasets = [] }: Prop
                                     </div>
 
                                     {/* Data preview pagination */}
-                                    {dataPagination && dataPagination.last_page > 1 && (
-                                        <div className="mt-4 flex items-center justify-between border-t pt-4">
-                                            <p className="text-muted-foreground text-sm">
-                                                Showing {dataFrom} to {dataTo} of{' '}
-                                                {dataPagination.total} rows
-                                            </p>
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled={
-                                                        dataPagination.current_page <= 1
-                                                    }
-                                                    onClick={() =>
-                                                        handleDataPageChange(
-                                                            dataPagination.current_page - 1,
-                                                        )
-                                                    }
-                                                >
-                                                    <ChevronLeft className="size-4" />
-                                                    Previous
-                                                </Button>
-                                                <span className="text-muted-foreground text-sm">
-                                                    Page {dataPagination.current_page} of{' '}
-                                                    {dataPagination.last_page}
-                                                </span>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    disabled={
-                                                        dataPagination.current_page >=
-                                                        dataPagination.last_page
-                                                    }
-                                                    onClick={() =>
-                                                        handleDataPageChange(
-                                                            dataPagination.current_page + 1,
-                                                        )
-                                                    }
-                                                >
-                                                    Next
-                                                    <ChevronRight className="size-4" />
-                                                </Button>
+                                    {dataPagination &&
+                                        dataPagination.last_page > 1 && (
+                                            <div className="mt-4 flex items-center justify-between border-t pt-4">
+                                                <p className="text-sm text-muted-foreground">
+                                                    Showing {dataFrom} to{' '}
+                                                    {dataTo} of{' '}
+                                                    {dataPagination.total} rows
+                                                </p>
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={
+                                                            dataPagination.current_page <=
+                                                            1
+                                                        }
+                                                        onClick={() =>
+                                                            handleDataPageChange(
+                                                                dataPagination.current_page -
+                                                                    1,
+                                                            )
+                                                        }
+                                                    >
+                                                        <ChevronLeft className="size-4" />
+                                                        Previous
+                                                    </Button>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Page{' '}
+                                                        {
+                                                            dataPagination.current_page
+                                                        }{' '}
+                                                        of{' '}
+                                                        {
+                                                            dataPagination.last_page
+                                                        }
+                                                    </span>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        disabled={
+                                                            dataPagination.current_page >=
+                                                            dataPagination.last_page
+                                                        }
+                                                        onClick={() =>
+                                                            handleDataPageChange(
+                                                                dataPagination.current_page +
+                                                                    1,
+                                                            )
+                                                        }
+                                                    >
+                                                        Next
+                                                        <ChevronRight className="size-4" />
+                                                    </Button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        )}
                                 </FadeIn>
                             </CardContent>
                         </Card>
