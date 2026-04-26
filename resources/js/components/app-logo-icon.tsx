@@ -1,0 +1,38 @@
+import type { SVGAttributes } from 'react';
+
+export default function AppLogoIcon(props: SVGAttributes<SVGElement>) {
+    return (
+        <svg
+            {...props}
+            viewBox="0 0 32 32"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+        >
+            <defs>
+                <linearGradient
+                    id="logo-grad"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                >
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+            </defs>
+            <rect
+                width="32"
+                height="32"
+                rx="8"
+                fill="url(#logo-grad)"
+            />
+            <path
+                d="M8 22V14l4-4m0 0l4 4v8m-4-12v12m4-8l4-4m0 0l4 4v8m-4-12v12"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+        </svg>
+    );
+}

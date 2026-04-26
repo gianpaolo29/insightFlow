@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(composer require:*)",
+      "Bash(npm install:*)",
+      "Bash(php -v)",
+      "Bash(php artisan:*)",
+      "Bash(php:*)",
+      "Bash(herd php:list)",
+      "Bash(where php:*)",
+      "Bash(\"C:\\\\Program Files\\\\php-8.3.13\\\\php.exe\" -m)",
+      "Bash(\"C:\\\\Users\\\\Windows\\\\.config\\\\herd\\\\bin\\\\php84\\\\php.exe\" -m)",
+      "Bash(\"C:\\\\Users\\\\Windows\\\\.config\\\\herd\\\\bin\\\\php84\\\\php.exe\" artisan:*)",
+      "WebFetch(domain:insightflow.test)",
+      "Bash(herd php:ext:*)",
+      "Bash(\"/c/Program Files/Herd/resources/bin/herd.exe\" php:ext enable pdo_mysql)",
+      "Bash(\"/c/Users/Windows/AppData/Local/Programs/Herd/resources/bin/herd.exe\" php:ext enable pdo_mysql)",
+      "Bash(vendor/bin/pint:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(composer show:*)",
+      "Bash(composer remove:*)",
+      "Bash(ls -la /c/Users/Windows/Herd/InsightFlow/*.md)",
+      "Bash(grep -l \"dark\" /c/Users/Windows/Herd/InsightFlow/resources/js/components/ui/*.tsx)"
+    ]
+  },
+  "disabledMcpjsonServers": [
+    "laravel-boost"
+  ]
+}
