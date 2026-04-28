@@ -1,14 +1,16 @@
 import { AnimatePresence } from 'framer-motion';
 import {
     BarChart3,
+    Circle,
     Filter,
+    Hash,
     LineChart,
     PieChart,
     Sparkles,
     TrendingUp,
     X,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import ReactApexChart from 'react-apexcharts';
 import {
     AnimatedCard,
@@ -18,6 +20,7 @@ import {
     StaggerItem,
     motion,
 } from '@/components/ui/animations';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -49,7 +52,13 @@ type Props = {
     data: Record<string, unknown>[];
 };
 
-const chartTypeConfig = {
+type ChartType = 'bar' | 'line' | 'pie' | 'area' | 'donut' | 'scatter';
+type AggregationType = 'sum' | 'avg' | 'count' | 'min' | 'max';
+
+const chartTypeConfig: Record<
+    ChartType,
+    { label: string; icon: typeof BarChart3; gradient: string }
+> = {
     bar: {
         label: 'Bar Chart',
         icon: BarChart3,
@@ -60,70 +69,227 @@ const chartTypeConfig = {
         icon: TrendingUp,
         gradient: 'from-emerald-500/20 to-teal-500/20',
     },
+    area: {
+        label: 'Area Chart',
+        icon: TrendingUp,
+        gradient: 'from-sky-500/20 to-indigo-500/20',
+    },
     pie: {
         label: 'Pie Chart',
         icon: PieChart,
         gradient: 'from-violet-500/20 to-purple-500/20',
     },
-} as const;
+    donut: {
+        label: 'Donut Chart',
+        icon: Circle,
+        gradient: 'from-rose-500/20 to-pink-500/20',
+    },
+    scatter: {
+        label: 'Scatter Plot',
+        icon: Hash,
+        gradient: 'from-amber-500/20 to-orange-500/20',
+    },
+};
+
+const aggregationOptions: { value: AggregationType; label: string }[] = [
+    { value: 'sum', label: 'Sum' },
+    { value: 'avg', label: 'Average' },
+    { value: 'count', label: 'Count' },
+    { value: 'min', label: 'Min' },
+    { value: 'max', label: 'Max' },
+];
+
+function isNumeric(values: unknown[]): boolean {
+    let numericCount = 0;
+    const sample = values.slice(0, 50);
+    for (const v of sample) {
+        if (v !== null && v !== '' && !isNaN(Number(v))) {
+            numericCount++;
+        }
+    }
+    return numericCount / sample.length > 0.5;
+}
+
+function formatNumber(n: number): string {
+    if (Number.isInteger(n)) return n.toLocaleString();
+    return n.toLocaleString(undefined, {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+}
 
 export default function VisualizePage({ dataset, data }: Props) {
     const [labelColumn, setLabelColumn] = useState(dataset.headers[0] ?? '');
-    const [valueColumn, setValueColumn] = useState(dataset.headers[1] ?? '');
-    const [chartType, setChartType] = useState<'bar' | 'line' | 'pie'>('bar');
+    const [valueColumns, setValueColumns] = useState<string[]>([
+        dataset.headers[1] ?? '',
+    ]);
+    const [chartType, setChartType] = useState<ChartType>('bar');
+    const [aggregation, setAggregation] = useState<AggregationType>('sum');
     const [filterColumn, setFilterColumn] = useState('');
     const [filterValue, setFilterValue] = useState('');
+    const [limit, setLimit] = useState(20);
 
+    // Detect numeric columns
+    const numericColumns = useMemo(() => {
+        return dataset.headers.filter((h) => {
+            const values = data.map((row) => row[h]);
+            return isNumeric(values);
+        });
+    }, [dataset.headers, data]);
+
+    const categoricalColumns = useMemo(() => {
+        return dataset.headers.filter((h) => !numericColumns.includes(h));
+    }, [dataset.headers, numericColumns]);
+
+    // Filter unique values
     const filterUniqueValues = useMemo(() => {
-        if (!filterColumn || data.length === 0) {
-            return [];
-        }
-
+        if (!filterColumn || data.length === 0) return [];
         const unique = new Set<string>();
-
         for (const row of data) {
             unique.add(String(row[filterColumn] ?? ''));
         }
-
         return Array.from(unique).sort();
     }, [data, filterColumn]);
 
+    // Apply filter
     const filteredData = useMemo(() => {
-        if (!filterColumn || !filterValue) {
-            return data;
-        }
-
+        if (!filterColumn || !filterValue) return data;
         return data.filter(
             (row) => String(row[filterColumn] ?? '') === filterValue,
         );
     }, [data, filterColumn, filterValue]);
 
+    // Aggregate data for each value column
+    const aggregate = useCallback(
+        (values: number[], type: AggregationType): number => {
+            if (values.length === 0) return 0;
+            switch (type) {
+                case 'sum':
+                    return values.reduce((a, b) => a + b, 0);
+                case 'avg':
+                    return values.reduce((a, b) => a + b, 0) / values.length;
+                case 'count':
+                    return values.length;
+                case 'min':
+                    return Math.min(...values);
+                case 'max':
+                    return Math.max(...values);
+            }
+        },
+        [],
+    );
+
+    // Build chart data (multi-series)
     const chartData = useMemo(() => {
-        if (!labelColumn || !valueColumn || filteredData.length === 0) {
-            return { categories: [] as string[], values: [] as number[] };
+        const primaryValue = valueColumns[0];
+        if (!labelColumn || !primaryValue || filteredData.length === 0) {
+            return { categories: [] as string[], series: [] as number[][] };
         }
 
-        const aggregated: Record<string, number> = {};
-
+        // Group by label
+        const grouped: Record<string, Record<string, number[]>> = {};
         for (const row of filteredData) {
             const label = String(row[labelColumn] ?? 'Unknown');
-            const val = Number(row[valueColumn]) || 0;
-            aggregated[label] = (aggregated[label] ?? 0) + val;
+            if (!grouped[label]) grouped[label] = {};
+            for (const vc of valueColumns) {
+                if (!grouped[label][vc]) grouped[label][vc] = [];
+                grouped[label][vc].push(Number(row[vc]) || 0);
+            }
         }
 
-        const entries = Object.entries(aggregated)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 20);
+        // Aggregate and sort by first value column
+        const entries = Object.entries(grouped)
+            .map(([label, cols]) => ({
+                label,
+                values: valueColumns.map((vc) =>
+                    Math.round(aggregate(cols[vc] ?? [], aggregation) * 100) /
+                    100,
+                ),
+                sortValue: aggregate(cols[primaryValue] ?? [], aggregation),
+            }))
+            .sort((a, b) => b.sortValue - a.sortValue)
+            .slice(0, limit);
 
         return {
-            categories: entries.map(([k]) => k),
-            values: entries.map(([, v]) => Math.round(v * 100) / 100),
+            categories: entries.map((e) => e.label),
+            series: valueColumns.map((_, i) => entries.map((e) => e.values[i])),
         };
-    }, [filteredData, labelColumn, valueColumn]);
+    }, [
+        filteredData,
+        labelColumn,
+        valueColumns,
+        aggregation,
+        limit,
+        aggregate,
+    ]);
+
+    // Scatter data (paired numeric columns)
+    const scatterData = useMemo(() => {
+        if (
+            chartType !== 'scatter' ||
+            valueColumns.length === 0 ||
+            !labelColumn
+        )
+            return [];
+        const xCol = labelColumn;
+        const yCol = valueColumns[0];
+        return filteredData
+            .map((row) => ({
+                x: Number(row[xCol]) || 0,
+                y: Number(row[yCol]) || 0,
+            }))
+            .slice(0, 500);
+    }, [chartType, filteredData, labelColumn, valueColumns]);
+
+    // Summary stats
+    const stats = useMemo(() => {
+        const primaryValue = valueColumns[0];
+        if (!primaryValue || filteredData.length === 0) return null;
+        const values = filteredData
+            .map((row) => Number(row[primaryValue]))
+            .filter((v) => !isNaN(v));
+        if (values.length === 0) return null;
+        const sum = values.reduce((a, b) => a + b, 0);
+        const sorted = [...values].sort((a, b) => a - b);
+        return {
+            count: values.length,
+            sum,
+            avg: sum / values.length,
+            min: sorted[0],
+            max: sorted[sorted.length - 1],
+            median:
+                sorted.length % 2 === 0
+                    ? (sorted[sorted.length / 2 - 1] +
+                          sorted[sorted.length / 2]) /
+                      2
+                    : sorted[Math.floor(sorted.length / 2)],
+        };
+    }, [filteredData, valueColumns]);
+
+    // Toggle value column for multi-series
+    function toggleValueColumn(col: string) {
+        setValueColumns((prev) => {
+            if (prev.includes(col)) {
+                return prev.length > 1 ? prev.filter((c) => c !== col) : prev;
+            }
+            return [...prev, col];
+        });
+    }
+
+    const hasData =
+        chartType === 'scatter'
+            ? scatterData.length > 0
+            : chartData.series.length > 0 && chartData.series[0].length > 0;
+    const isPieType = chartType === 'pie' || chartType === 'donut';
 
     const barLineOptions: ApexCharts.ApexOptions = {
         chart: {
-            type: chartType === 'line' ? 'line' : 'bar',
+            type:
+                chartType === 'area'
+                    ? 'area'
+                    : chartType === 'line'
+                      ? 'line'
+                      : 'bar',
             toolbar: {
                 show: true,
                 tools: {
@@ -142,6 +308,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                 },
             },
             fontFamily: 'inherit',
+            animations: { enabled: true, speed: 500 },
         },
         xaxis: {
             categories: chartData.categories,
@@ -152,46 +319,182 @@ export default function VisualizePage({ dataset, data }: Props) {
             },
         },
         yaxis: {
-            title: { text: valueColumn },
+            title: {
+                text:
+                    valueColumns.length === 1
+                        ? valueColumns[0]
+                        : `${aggregation.toUpperCase()}`,
+            },
+            labels: {
+                formatter: (v: number) => formatNumber(v),
+            },
         },
         dataLabels: { enabled: false },
         colors: [
-            'var(--chart-1, #3b82f6)',
-            'var(--chart-2, #22c55e)',
-            'var(--chart-3, #6366f1)',
+            '#3b82f6',
+            '#22c55e',
+            '#f59e0b',
+            '#ef4444',
+            '#8b5cf6',
+            '#06b6d4',
         ],
         plotOptions: {
-            bar: {
-                borderRadius: 4,
-                columnWidth: '60%',
-            },
+            bar: { borderRadius: 4, columnWidth: '60%' },
         },
+        stroke:
+            chartType === 'area'
+                ? { curve: 'smooth', width: 2 }
+                : { curve: 'smooth' },
+        fill:
+            chartType === 'area'
+                ? { type: 'gradient', gradient: { opacityFrom: 0.5, opacityTo: 0.1 } }
+                : {},
         tooltip: { theme: 'dark' },
+        legend: {
+            show: valueColumns.length > 1,
+            position: 'top',
+        },
     };
 
     const pieOptions: ApexCharts.ApexOptions = {
         chart: {
-            type: 'pie',
+            type: chartType === 'donut' ? 'donut' : 'pie',
             fontFamily: 'inherit',
             toolbar: {
                 show: true,
-                tools: {
-                    download: true,
-                },
+                tools: { download: true },
                 export: {
                     png: { filename: `${dataset.name}-pie-chart` },
                     svg: { filename: `${dataset.name}-pie-chart` },
                 },
             },
+            animations: { enabled: true, speed: 500 },
         },
         labels: chartData.categories,
-        legend: {
-            position: 'bottom',
+        legend: { position: 'bottom' },
+        tooltip: { theme: 'dark' },
+        colors: [
+            '#3b82f6',
+            '#22c55e',
+            '#f59e0b',
+            '#ef4444',
+            '#8b5cf6',
+            '#06b6d4',
+            '#ec4899',
+            '#14b8a6',
+        ],
+        plotOptions:
+            chartType === 'donut'
+                ? {
+                      pie: {
+                          donut: {
+                              size: '55%',
+                              labels: { show: true, total: { show: true } },
+                          },
+                      },
+                  }
+                : {},
+    };
+
+    const scatterOptions: ApexCharts.ApexOptions = {
+        chart: {
+            type: 'scatter',
+            toolbar: { show: true },
+            fontFamily: 'inherit',
+            zoom: { enabled: true },
         },
+        xaxis: { title: { text: labelColumn }, tickAmount: 10 },
+        yaxis: {
+            title: { text: valueColumns[0] ?? '' },
+            labels: { formatter: (v: number) => formatNumber(v) },
+        },
+        colors: ['#3b82f6'],
         tooltip: { theme: 'dark' },
     };
 
-    const hasData = chartData.values.length > 0;
+    function renderChart(
+        type: ChartType,
+        height: number,
+        animate = true,
+    ) {
+        const wrapper = (content: React.ReactNode) =>
+            animate ? (
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={type}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3 }}
+                    >
+                        {content}
+                    </motion.div>
+                </AnimatePresence>
+            ) : (
+                content
+            );
+
+        if (type === 'scatter') {
+            return wrapper(
+                <ReactApexChart
+                    type="scatter"
+                    options={scatterOptions}
+                    series={[
+                        {
+                            name: `${labelColumn} vs ${valueColumns[0]}`,
+                            data: scatterData,
+                        },
+                    ]}
+                    height={height}
+                />,
+            );
+        }
+
+        if (type === 'pie' || type === 'donut') {
+            return wrapper(
+                <ReactApexChart
+                    type={type}
+                    options={{
+                        ...pieOptions,
+                        chart: { ...pieOptions.chart, type },
+                    }}
+                    series={chartData.series[0] ?? []}
+                    height={height}
+                />,
+            );
+        }
+
+        const apexType = type === 'area' ? 'area' : type === 'line' ? 'line' : 'bar';
+        return wrapper(
+            <ReactApexChart
+                type={apexType}
+                options={{
+                    ...barLineOptions,
+                    chart: { ...barLineOptions.chart, type: apexType },
+                    stroke:
+                        type === 'area'
+                            ? { curve: 'smooth' as const, width: 2 }
+                            : { curve: 'smooth' as const },
+                    fill:
+                        type === 'area'
+                            ? {
+                                  type: 'gradient',
+                                  gradient: { opacityFrom: 0.5, opacityTo: 0.1 },
+                              }
+                            : {},
+                }}
+                series={valueColumns.map((vc, i) => ({
+                    name: vc,
+                    data: chartData.series[i] ?? [],
+                }))}
+                height={height}
+            />,
+        );
+    }
+
+    const alternateTypes = (
+        Object.keys(chartTypeConfig) as ChartType[]
+    ).filter((t) => t !== chartType && t !== 'scatter');
 
     return (
         <DatasetLayout
@@ -208,7 +511,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                 {/* Controls */}
                 <FadeIn>
                     <AnimatedCard>
-                        <Card className="overflow-hidden">
+                        <Card className="overflow-hidden border-border/40">
                             <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle className="flex items-center gap-2">
@@ -225,12 +528,11 @@ export default function VisualizePage({ dataset, data }: Props) {
                                     Dashboard Controls
                                 </CardTitle>
                                 <CardDescription>
-                                    Select columns and chart type to visualize
-                                    your data.
+                                    Select columns, aggregation, and chart type.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="px-4 sm:px-6">
-                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                     <div>
                                         <Label>Labels (X-Axis)</Label>
                                         <Select
@@ -246,7 +548,16 @@ export default function VisualizePage({ dataset, data }: Props) {
                                                         key={h}
                                                         value={h}
                                                     >
-                                                        {h}
+                                                        <span className="flex items-center gap-1.5">
+                                                            {numericColumns.includes(
+                                                                h,
+                                                            ) ? (
+                                                                <Hash className="size-3 text-blue-500" />
+                                                            ) : (
+                                                                <span className="size-3" />
+                                                            )}
+                                                            {h}
+                                                        </span>
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -255,8 +566,10 @@ export default function VisualizePage({ dataset, data }: Props) {
                                     <div>
                                         <Label>Values (Y-Axis)</Label>
                                         <Select
-                                            value={valueColumn}
-                                            onValueChange={setValueColumn}
+                                            value={valueColumns[0]}
+                                            onValueChange={(v) =>
+                                                setValueColumns([v])
+                                            }
                                         >
                                             <SelectTrigger className="mt-1 w-full">
                                                 <SelectValue />
@@ -267,7 +580,41 @@ export default function VisualizePage({ dataset, data }: Props) {
                                                         key={h}
                                                         value={h}
                                                     >
-                                                        {h}
+                                                        <span className="flex items-center gap-1.5">
+                                                            {numericColumns.includes(
+                                                                h,
+                                                            ) ? (
+                                                                <Hash className="size-3 text-blue-500" />
+                                                            ) : (
+                                                                <span className="size-3" />
+                                                            )}
+                                                            {h}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label>Aggregation</Label>
+                                        <Select
+                                            value={aggregation}
+                                            onValueChange={(v) =>
+                                                setAggregation(
+                                                    v as AggregationType,
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger className="mt-1 w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {aggregationOptions.map((o) => (
+                                                    <SelectItem
+                                                        key={o.value}
+                                                        value={o.value}
+                                                    >
+                                                        {o.label}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -278,9 +625,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                                         <Select
                                             value={chartType}
                                             onValueChange={(v) =>
-                                                setChartType(
-                                                    v as 'bar' | 'line' | 'pie',
-                                                )
+                                                setChartType(v as ChartType)
                                             }
                                         >
                                             <SelectTrigger className="mt-1 w-full">
@@ -291,12 +636,11 @@ export default function VisualizePage({ dataset, data }: Props) {
                                                     Object.entries(
                                                         chartTypeConfig,
                                                     ) as [
-                                                        'bar' | 'line' | 'pie',
-                                                        (typeof chartTypeConfig)[keyof typeof chartTypeConfig],
+                                                        ChartType,
+                                                        (typeof chartTypeConfig)[ChartType],
                                                     ][]
                                                 ).map(([key, config]) => {
                                                     const Icon = config.icon;
-
                                                     return (
                                                         <SelectItem
                                                             key={key}
@@ -313,15 +657,108 @@ export default function VisualizePage({ dataset, data }: Props) {
                                         </Select>
                                     </div>
                                 </div>
+
+                                {/* Multi-series toggle */}
+                                {!isPieType &&
+                                    chartType !== 'scatter' &&
+                                    numericColumns.length > 1 && (
+                                        <div className="mt-4">
+                                            <Label className="text-xs text-muted-foreground">
+                                                Compare columns (click to
+                                                toggle)
+                                            </Label>
+                                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                                {numericColumns.map((col) => (
+                                                    <Badge
+                                                        key={col}
+                                                        variant={
+                                                            valueColumns.includes(
+                                                                col,
+                                                            )
+                                                                ? 'default'
+                                                                : 'outline'
+                                                        }
+                                                        className="cursor-pointer select-none transition-all hover:scale-105"
+                                                        onClick={() =>
+                                                            toggleValueColumn(
+                                                                col,
+                                                            )
+                                                        }
+                                                    >
+                                                        {col}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                {/* Limit control */}
+                                <div className="mt-4 flex items-center gap-3">
+                                    <Label className="shrink-0 text-xs text-muted-foreground">
+                                        Show top
+                                    </Label>
+                                    <Select
+                                        value={String(limit)}
+                                        onValueChange={(v) =>
+                                            setLimit(Number(v))
+                                        }
+                                    >
+                                        <SelectTrigger className="w-20">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {[10, 20, 30, 50, 100].map((n) => (
+                                                <SelectItem
+                                                    key={n}
+                                                    value={String(n)}
+                                                >
+                                                    {n}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <span className="text-xs text-muted-foreground">
+                                        entries
+                                    </span>
+                                </div>
                             </CardContent>
                         </Card>
                     </AnimatedCard>
                 </FadeIn>
 
+                {/* Summary Stats */}
+                {stats && (
+                    <FadeIn delay={0.05}>
+                        <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                            {[
+                                { label: 'Count', value: stats.count },
+                                { label: 'Sum', value: stats.sum },
+                                { label: 'Average', value: stats.avg },
+                                { label: 'Median', value: stats.median },
+                                { label: 'Min', value: stats.min },
+                                { label: 'Max', value: stats.max },
+                            ].map((s) => (
+                                <StaggerItem key={s.label}>
+                                    <Card className="border-border/40">
+                                        <CardContent className="p-3 text-center">
+                                            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                                                {s.label}
+                                            </p>
+                                            <p className="mt-0.5 text-lg font-bold tabular-nums">
+                                                {formatNumber(s.value)}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </StaggerItem>
+                            ))}
+                        </StaggerContainer>
+                    </FadeIn>
+                )}
+
                 {/* Filter Section */}
                 <FadeIn>
                     <AnimatedCard delay={0.1}>
-                        <Card className="overflow-hidden">
+                        <Card className="overflow-hidden border-border/40">
                             <div className="h-1 bg-gradient-to-r from-amber-500/20 to-orange-500/20" />
                             <CardHeader className="px-4 sm:px-6">
                                 <CardTitle className="flex items-center gap-2 text-base">
@@ -402,7 +839,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                                             }}
                                         >
                                             <X className="size-4" />
-                                            Clear Filter
+                                            Clear
                                         </Button>
                                     )}
                                 </div>
@@ -439,7 +876,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                 {hasData ? (
                     <FadeInScale delay={0.15}>
                         <AnimatedCard delay={0.15}>
-                            <Card className="overflow-hidden">
+                            <Card className="overflow-hidden border-border/40">
                                 <div
                                     className={`h-1 bg-gradient-to-r ${chartTypeConfig[chartType].gradient}`}
                                 />
@@ -448,65 +885,40 @@ export default function VisualizePage({ dataset, data }: Props) {
                                         {(() => {
                                             const Icon =
                                                 chartTypeConfig[chartType].icon;
-
                                             return (
                                                 <Icon className="size-5 text-muted-foreground" />
                                             );
                                         })()}
                                         {chartTypeConfig[chartType].label}
+                                        {valueColumns.length > 1 && (
+                                            <Badge
+                                                variant="secondary"
+                                                className="text-xs"
+                                            >
+                                                {valueColumns.length} series
+                                            </Badge>
+                                        )}
                                     </CardTitle>
                                     <CardDescription>
-                                        {valueColumn} by {labelColumn} (top{' '}
-                                        {chartData.categories.length} entries)
+                                        {aggregation.charAt(0).toUpperCase() +
+                                            aggregation.slice(1)}{' '}
+                                        of {valueColumns.join(', ')} by{' '}
+                                        {labelColumn} (top{' '}
+                                        {chartType === 'scatter'
+                                            ? scatterData.length
+                                            : chartData.categories.length}{' '}
+                                        entries)
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="px-4 sm:px-6">
-                                    <AnimatePresence mode="wait">
-                                        <motion.div
-                                            key={chartType}
-                                            initial={{
-                                                opacity: 0,
-                                                scale: 0.95,
-                                            }}
-                                            animate={{
-                                                opacity: 1,
-                                                scale: 1,
-                                            }}
-                                            exit={{
-                                                opacity: 0,
-                                                scale: 0.95,
-                                            }}
-                                            transition={{ duration: 0.3 }}
-                                        >
-                                            {chartType === 'pie' ? (
-                                                <ReactApexChart
-                                                    type="pie"
-                                                    options={pieOptions}
-                                                    series={chartData.values}
-                                                    height={350}
-                                                />
-                                            ) : (
-                                                <ReactApexChart
-                                                    type={chartType}
-                                                    options={barLineOptions}
-                                                    series={[
-                                                        {
-                                                            name: valueColumn,
-                                                            data: chartData.values,
-                                                        },
-                                                    ]}
-                                                    height={350}
-                                                />
-                                            )}
-                                        </motion.div>
-                                    </AnimatePresence>
+                                    {renderChart(chartType, 380)}
                                 </CardContent>
                             </Card>
                         </AnimatedCard>
                     </FadeInScale>
                 ) : (
                     <FadeInScale delay={0.15}>
-                        <Card>
+                        <Card className="border-border/40">
                             <CardContent className="py-16 text-center">
                                 <motion.div
                                     className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-muted"
@@ -536,100 +948,33 @@ export default function VisualizePage({ dataset, data }: Props) {
                     </FadeInScale>
                 )}
 
-                {/* Additional charts */}
-                {hasData && (
+                {/* Alternative charts */}
+                {hasData && chartType !== 'scatter' && (
                     <StaggerContainer className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        {chartType !== 'bar' && (
-                            <StaggerItem>
-                                <AnimatedCard delay={0.25}>
-                                    <Card className="overflow-hidden">
-                                        <div className="h-1 bg-gradient-to-r from-blue-500/20 to-cyan-500/20" />
-                                        <CardHeader className="px-4 sm:px-6">
-                                            <CardTitle className="flex items-center gap-2 text-base">
-                                                <BarChart3 className="size-4 text-muted-foreground" />
-                                                Bar Chart
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="px-4 sm:px-6">
-                                            <ReactApexChart
-                                                type="bar"
-                                                options={{
-                                                    ...barLineOptions,
-                                                    chart: {
-                                                        ...barLineOptions.chart,
-                                                        type: 'bar',
-                                                    },
-                                                }}
-                                                series={[
-                                                    {
-                                                        name: valueColumn,
-                                                        data: chartData.values,
-                                                    },
-                                                ]}
-                                                height={300}
+                        {alternateTypes.slice(0, 4).map((type, i) => {
+                            const config = chartTypeConfig[type];
+                            const Icon = config.icon;
+                            return (
+                                <StaggerItem key={type}>
+                                    <AnimatedCard delay={0.25 + i * 0.05}>
+                                        <Card className="overflow-hidden border-border/40">
+                                            <div
+                                                className={`h-1 bg-gradient-to-r ${config.gradient}`}
                                             />
-                                        </CardContent>
-                                    </Card>
-                                </AnimatedCard>
-                            </StaggerItem>
-                        )}
-                        {chartType !== 'line' && (
-                            <StaggerItem>
-                                <AnimatedCard delay={0.3}>
-                                    <Card className="overflow-hidden">
-                                        <div className="h-1 bg-gradient-to-r from-emerald-500/20 to-teal-500/20" />
-                                        <CardHeader className="px-4 sm:px-6">
-                                            <CardTitle className="flex items-center gap-2 text-base">
-                                                <LineChart className="size-4 text-muted-foreground" />
-                                                Line Chart
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="px-4 sm:px-6">
-                                            <ReactApexChart
-                                                type="line"
-                                                options={{
-                                                    ...barLineOptions,
-                                                    chart: {
-                                                        ...barLineOptions.chart,
-                                                        type: 'line',
-                                                    },
-                                                }}
-                                                series={[
-                                                    {
-                                                        name: valueColumn,
-                                                        data: chartData.values,
-                                                    },
-                                                ]}
-                                                height={300}
-                                            />
-                                        </CardContent>
-                                    </Card>
-                                </AnimatedCard>
-                            </StaggerItem>
-                        )}
-                        {chartType !== 'pie' && (
-                            <StaggerItem>
-                                <AnimatedCard delay={0.35}>
-                                    <Card className="overflow-hidden">
-                                        <div className="h-1 bg-gradient-to-r from-violet-500/20 to-purple-500/20" />
-                                        <CardHeader className="px-4 sm:px-6">
-                                            <CardTitle className="flex items-center gap-2 text-base">
-                                                <PieChart className="size-4 text-muted-foreground" />
-                                                Pie Chart
-                                            </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="px-4 sm:px-6">
-                                            <ReactApexChart
-                                                type="pie"
-                                                options={pieOptions}
-                                                series={chartData.values}
-                                                height={300}
-                                            />
-                                        </CardContent>
-                                    </Card>
-                                </AnimatedCard>
-                            </StaggerItem>
-                        )}
+                                            <CardHeader className="px-4 sm:px-6">
+                                                <CardTitle className="flex items-center gap-2 text-base">
+                                                    <Icon className="size-4 text-muted-foreground" />
+                                                    {config.label}
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="px-4 sm:px-6">
+                                                {renderChart(type, 300, false)}
+                                            </CardContent>
+                                        </Card>
+                                    </AnimatedCard>
+                                </StaggerItem>
+                            );
+                        })}
                     </StaggerContainer>
                 )}
             </div>

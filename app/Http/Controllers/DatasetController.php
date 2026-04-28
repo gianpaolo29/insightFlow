@@ -328,7 +328,115 @@ class DatasetController extends Controller
             $summary['transformations'][] = "Removed {$removedHighMissing} rows with excessive missing values";
         }
 
-        // Step 3: Handle remaining missing values (mean for numeric, mode for categorical)
+        // Step 3a: Context-based imputation — infer missing values from correlated columns
+        $contextFilled = 0;
+        $contextDetails = [];
+
+        // Build lookup maps: for each column with missing values, find other columns
+        // that can predict its value (e.g., Product can be inferred from Price)
+        foreach ($headers as $targetCol) {
+            $hasMissing = false;
+            foreach ($data as $row) {
+                if (! isset($row[$targetCol]) || $row[$targetCol] === '' || $row[$targetCol] === null) {
+                    $hasMissing = true;
+                    break;
+                }
+            }
+
+            if (! $hasMissing) {
+                continue;
+            }
+
+            // Find the best predictor column: a column where each unique value
+            // consistently maps to the same value in the target column
+            $bestPredictor = null;
+            $bestMap = [];
+            $bestConfidence = 0;
+
+            foreach ($headers as $predictorCol) {
+                if ($predictorCol === $targetCol) {
+                    continue;
+                }
+
+                // Build mapping: predictor value → target values seen together
+                $mapping = [];
+                foreach ($data as $row) {
+                    $pVal = $row[$predictorCol] ?? null;
+                    $tVal = $row[$targetCol] ?? null;
+
+                    if ($pVal === null || $pVal === '' || $tVal === null || $tVal === '') {
+                        continue;
+                    }
+
+                    $pKey = (string) $pVal;
+                    if (! isset($mapping[$pKey])) {
+                        $mapping[$pKey] = [];
+                    }
+                    $mapping[$pKey][] = (string) $tVal;
+                }
+
+                if (empty($mapping)) {
+                    continue;
+                }
+
+                // Calculate confidence: how often does a predictor value map to exactly one target?
+                $totalMappings = 0;
+                $uniqueMappings = 0;
+                $resolvedMap = [];
+                foreach ($mapping as $pKey => $targetValues) {
+                    $counts = array_count_values($targetValues);
+                    arsort($counts);
+                    $topValue = array_key_first($counts);
+                    $topCount = $counts[$topValue];
+                    $total = array_sum($counts);
+
+                    if ($topCount / $total >= 0.8 && $total >= 2) {
+                        $resolvedMap[$pKey] = $topValue;
+                        $uniqueMappings++;
+                    }
+                    $totalMappings++;
+                }
+
+                if ($totalMappings > 0) {
+                    $confidence = $uniqueMappings / $totalMappings;
+                    if ($confidence > $bestConfidence && $confidence >= 0.5 && count($resolvedMap) >= 2) {
+                        $bestConfidence = $confidence;
+                        $bestPredictor = $predictorCol;
+                        $bestMap = $resolvedMap;
+                    }
+                }
+            }
+
+            // Apply the best predictor mapping to fill missing values
+            if ($bestPredictor !== null && ! empty($bestMap)) {
+                $filledInCol = 0;
+                foreach ($data as &$row) {
+                    if (! isset($row[$targetCol]) || $row[$targetCol] === '' || $row[$targetCol] === null) {
+                        $pVal = (string) ($row[$bestPredictor] ?? '');
+                        if (isset($bestMap[$pVal])) {
+                            $row[$targetCol] = $bestMap[$pVal];
+                            $filledInCol++;
+                            $contextFilled++;
+                        }
+                    }
+                }
+                unset($row);
+
+                if ($filledInCol > 0) {
+                    $summary['columns_modified'][] = $targetCol;
+                    $contextDetails[] = "'{$targetCol}' from '{$bestPredictor}' ({$filledInCol} values, ".round($bestConfidence * 100).'% confidence)';
+                    $log[] = [
+                        'type' => 'context_fill',
+                        'message' => "Inferred {$filledInCol} missing values in '{$targetCol}' using '{$bestPredictor}' as predictor (".round($bestConfidence * 100).'% confidence).',
+                    ];
+                }
+            }
+        }
+        if ($contextFilled > 0) {
+            $summary['transformations'][] = "Inferred {$contextFilled} values using context: ".implode('; ', $contextDetails);
+        }
+
+        // Step 3b: Handle remaining missing values (mean for numeric, mode for categorical)
         $filledCount = 0;
         foreach ($headers as $header) {
             $values = array_column($data, $header);
@@ -372,9 +480,9 @@ class DatasetController extends Controller
                 $log[] = ['type' => 'fill_missing', 'message' => "Filled {$missingInCol} missing values in '{$header}' with mode ('{$mode}')."];
             }
         }
-        $summary['missing_values_handled'] = $filledCount;
+        $summary['missing_values_handled'] = $filledCount + $contextFilled;
         if ($filledCount > 0) {
-            $summary['transformations'][] = "Filled {$filledCount} missing values using mean/mode strategy";
+            $summary['transformations'][] = "Filled {$filledCount} remaining missing values using mean/mode strategy";
         }
 
         // Step 4: Remove duplicates
