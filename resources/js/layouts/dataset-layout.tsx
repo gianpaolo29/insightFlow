@@ -1,4 +1,4 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import {
     BarChart3,
@@ -6,14 +6,27 @@ import {
     FileUp,
     GitCompareArrows,
     Lightbulb,
+    LogIn,
+    LogOut,
+    Settings,
     Sparkles,
     Wrench,
 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
     Sidebar,
     SidebarContent,
@@ -26,8 +39,11 @@ import {
     SidebarMenuItem,
     SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { UserInfo } from '@/components/user-info';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import type { BreadcrumbItem } from '@/types';
+import { login, logout } from '@/routes';
+import { edit } from '@/routes/profile';
+import type { BreadcrumbItem, User } from '@/types';
 
 type Dataset = {
     id: number;
@@ -58,9 +74,11 @@ export default function DatasetLayout({
     children: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
 }) {
-    const page = usePage<{ dataset?: Dataset }>();
+    const page = usePage<{ dataset?: Dataset; auth: { user: User | null } }>();
     const dataset = page.props.dataset;
+    const user = page.props.auth.user;
     const { isCurrentUrl } = useCurrentUrl();
+    const [showLogout, setShowLogout] = useState(false);
 
     const navItems = useMemo(() => {
         const items = [
@@ -112,6 +130,7 @@ export default function DatasetLayout({
     }, [dataset]);
 
     return (
+        <>
         <AppShell variant="sidebar">
             <Sidebar collapsible="icon" variant="inset">
                 <SidebarHeader>
@@ -237,16 +256,71 @@ export default function DatasetLayout({
 
                 <SidebarFooter>
                     <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton
-                                size="sm"
-                                className="text-xs text-muted-foreground"
-                                tooltip={{ children: 'InsightFlow v1.0' }}
-                            >
-                                <Sparkles className="size-3" />
-                                <span>InsightFlow v1.0</span>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
+                        {user ? (
+                            <SidebarMenuItem>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <SidebarMenuButton
+                                            size="lg"
+                                            className="cursor-pointer"
+                                        >
+                                            <UserInfo
+                                                user={user}
+                                                showEmail={true}
+                                            />
+                                        </SidebarMenuButton>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent
+                                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+                                        side="top"
+                                        align="start"
+                                        sideOffset={4}
+                                    >
+                                        <DropdownMenuLabel className="p-0 font-normal">
+                                            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+                                                <UserInfo
+                                                    user={user}
+                                                    showEmail={true}
+                                                />
+                                            </div>
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuGroup>
+                                            <DropdownMenuItem asChild>
+                                                <Link
+                                                    className="block w-full cursor-pointer"
+                                                    href={edit()}
+                                                    prefetch
+                                                >
+                                                    <Settings className="mr-2" />
+                                                    Settings
+                                                </Link>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuGroup>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem
+                                            className="cursor-pointer"
+                                            onClick={() => setShowLogout(true)}
+                                        >
+                                            <LogOut className="mr-2" />
+                                            Log out
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </SidebarMenuItem>
+                        ) : (
+                            <SidebarMenuItem>
+                                <SidebarMenuButton
+                                    asChild
+                                    tooltip={{ children: 'Sign in' }}
+                                >
+                                    <Link href={login()}>
+                                        <LogIn className="size-4" />
+                                        <span>Sign in</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        )}
                     </SidebarMenu>
                 </SidebarFooter>
             </Sidebar>
@@ -262,5 +336,18 @@ export default function DatasetLayout({
                 </motion.div>
             </AppContent>
         </AppShell>
+
+        <ConfirmDialog
+            open={showLogout}
+            onOpenChange={setShowLogout}
+            title="Log out?"
+            description="Are you sure you want to log out of your account?"
+            confirmLabel="Log out"
+            onConfirm={() => {
+                router.flushAll();
+                router.post(logout.url());
+            }}
+        />
+        </>
     );
 }

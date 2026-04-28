@@ -1,17 +1,7 @@
 import { router } from '@inertiajs/react';
 import { useEffect } from 'react';
-import Swal from 'sweetalert2';
+import { toast } from 'sonner';
 import type { FlashToast } from '@/types/ui';
-
-const iconMap: Record<
-    FlashToast['type'],
-    'success' | 'info' | 'warning' | 'error'
-> = {
-    success: 'success',
-    info: 'info',
-    warning: 'warning',
-    error: 'error',
-};
 
 export function useFlashToast(): void {
     useEffect(() => {
@@ -23,15 +13,20 @@ export function useFlashToast(): void {
                 return;
             }
 
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: iconMap[data.type],
-                title: data.message,
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
+            switch (data.type) {
+                case 'success':
+                    toast.success(data.message);
+                    break;
+                case 'error':
+                    toast.error(data.message);
+                    break;
+                case 'warning':
+                    toast.warning(data.message);
+                    break;
+                case 'info':
+                    toast.info(data.message);
+                    break;
+            }
         });
     }, []);
 }

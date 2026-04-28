@@ -17,7 +17,8 @@ import {
 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
-import Swal from 'sweetalert2';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
     AnimatedCard,
     FadeIn,
@@ -94,7 +95,7 @@ type SimpleDataset = {
 };
 
 type Props = {
-    datasets: PaginatedData;
+    datasets: PaginatedData | null;
     dataset?: DatasetDetail;
     allDatasets?: SimpleDataset[];
 };
@@ -154,7 +155,8 @@ export default function UploadPage({
 }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const { data, setData, post, processing, errors, reset } = useForm<{
+    const [uploading, setUploading] = useState(false);
+    const { data, setData, processing, errors, reset } = useForm<{
         name: string;
         files: File[];
     }>({
@@ -175,21 +177,8 @@ export default function UploadPage({
     });
 
     const [showRelationshipForm, setShowRelationshipForm] = useState(false);
-
-    function confirmDelete(datasetId: number) {
-        Swal.fire({
-            title: 'Delete Dataset?',
-            text: 'This action cannot be undone.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, delete it',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                deleteForm.delete(`/datasets/${datasetId}`);
-            }
-        });
-    }
+    const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+    const [unlinkTarget, setUnlinkTarget] = useState<number | null>(null);
 
     function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files ?? []);
@@ -209,17 +198,26 @@ export default function UploadPage({
 
     function handleSubmit(e: FormEvent) {
         e.preventDefault();
-        post('/datasets/upload', {
-            forceFormData: true,
-            onSuccess: () => {
-                reset();
-                setSelectedFiles([]);
 
-                if (fileRef.current) {
-                    fileRef.current.value = '';
-                }
+        if (!data.name.trim()) {
+            toast.error('Please enter a dataset name.');
+            return;
+        }
+
+        if (selectedFiles.length === 0) {
+            toast.error('Please select at least one file to upload.');
+            return;
+        }
+
+        setUploading(true);
+        router.post(
+            '/datasets/upload',
+            { name: data.name, files: selectedFiles },
+            {
+                forceFormData: true,
+                onFinish: () => setUploading(false),
             },
-        });
+        );
     }
 
     function handleAddRelationship(e: FormEvent) {
@@ -242,20 +240,7 @@ export default function UploadPage({
             return;
         }
 
-        Swal.fire({
-            title: 'Remove Relationship?',
-            text: 'This will unlink the datasets.',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#ef4444',
-            confirmButtonText: 'Yes, remove it',
-        }).then((result) => {
-            if (result.isConfirmed) {
-                router.delete(
-                    `/datasets/${dataset.id}/relationships/${relatedId}`,
-                );
-            }
-        });
+        setUnlinkTarget(relatedId);
     }
 
     function handleDataPageChange(page: number) {
@@ -267,18 +252,20 @@ export default function UploadPage({
         });
     }
 
-    const datasetsList = datasets.data;
+    const datasetsList = datasets?.data ?? [];
     const displayData = dataset?.original_data ?? [];
     const displayHeaders = dataset?.headers ?? [];
 
     const datasetsFrom =
-        datasets.total > 0
+        datasets && datasets.total > 0
             ? (datasets.current_page - 1) * datasets.per_page + 1
             : 0;
-    const datasetsTo = Math.min(
-        datasets.current_page * datasets.per_page,
-        datasets.total,
-    );
+    const datasetsTo = datasets
+        ? Math.min(
+              datasets.current_page * datasets.per_page,
+              datasets.total,
+          )
+        : 0;
 
     const dataPagination = dataset?.data_pagination;
     const dataFrom =
@@ -309,19 +296,50 @@ export default function UploadPage({
                 {/* System Overview */}
                 {!dataset && (
                     <FadeIn>
-                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-violet-600 p-6 text-primary-foreground shadow-lg shadow-primary/20 sm:p-8">
+                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-primary/90 to-violet-700 p-6 text-white shadow-xl shadow-primary/25 sm:p-8">
+                            {/* Decorative elements */}
                             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.15),transparent_50%)]" />
+                            <div className="pointer-events-none absolute -top-24 -right-24 size-64 rounded-full bg-white/5 blur-2xl" />
+                            <div className="pointer-events-none absolute -bottom-16 -left-16 size-48 rounded-full bg-violet-400/10 blur-2xl" />
+                            <motion.div
+                                className="pointer-events-none absolute top-4 right-8 size-2 rounded-full bg-white/30"
+                                animate={{
+                                    y: [0, -12, 0],
+                                    opacity: [0.3, 0.7, 0.3],
+                                }}
+                                transition={{
+                                    duration: 3,
+                                    repeat: Infinity,
+                                    ease: 'easeInOut',
+                                }}
+                            />
+                            <motion.div
+                                className="pointer-events-none absolute right-24 bottom-6 size-1.5 rounded-full bg-white/25"
+                                animate={{
+                                    y: [0, -8, 0],
+                                    opacity: [0.2, 0.6, 0.2],
+                                }}
+                                transition={{
+                                    duration: 4,
+                                    repeat: Infinity,
+                                    ease: 'easeInOut',
+                                    delay: 1,
+                                }}
+                            />
                             <div className="relative">
-                                <div className="mb-2 flex items-center gap-2">
-                                    <Sparkles className="size-5" />
-                                    <span className="text-sm font-medium opacity-90">
-                                        InsightFlow
-                                    </span>
-                                </div>
-                                <h1 className="mb-2 text-2xl font-bold sm:text-3xl">
+                                <motion.div
+                                    className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-medium backdrop-blur-sm"
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: 0.2 }}
+                                >
+                                    <Sparkles className="size-3.5" />
+                                    InsightFlow
+                                </motion.div>
+                                <h1 className="mb-2 text-2xl font-bold tracking-tight sm:text-3xl">
                                     Your Data Analytics Platform
                                 </h1>
-                                <p className="max-w-2xl text-sm opacity-80">
+                                <p className="max-w-2xl text-sm leading-relaxed text-white/70">
                                     Upload datasets, clean and transform your
                                     data, discover hidden patterns, link related
                                     files, and create stunning visualizations —
@@ -335,23 +353,26 @@ export default function UploadPage({
                 {/* Features Grid */}
                 {!dataset && (
                     <FadeIn delay={0.1}>
-                        <StaggerContainer className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <StaggerContainer className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                             {features.map((feature) => {
                                 const Icon = feature.icon;
 
                                 return (
                                     <StaggerItem key={feature.title}>
-                                        <Card className="border-border/60 transition-all hover:border-primary/30 hover:shadow-md">
-                                            <CardContent className="p-4">
+                                        <Card className="group relative h-full overflow-hidden border-border/40 bg-card/50 backdrop-blur-sm transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+                                            <div
+                                                className={`pointer-events-none absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 transition-opacity duration-300 group-hover:opacity-[0.03]`}
+                                            />
+                                            <CardContent className="relative flex h-full flex-col p-3 sm:p-4">
                                                 <div
-                                                    className={`mb-2 inline-flex size-9 items-center justify-center rounded-lg bg-gradient-to-br ${feature.gradient} text-white shadow-sm`}
+                                                    className={`mb-2.5 inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${feature.gradient} text-white shadow-md shadow-black/10 transition-transform duration-300 group-hover:scale-110 sm:size-10`}
                                                 >
-                                                    <Icon className="size-4" />
+                                                    <Icon className="size-4 sm:size-[18px]" />
                                                 </div>
-                                                <h3 className="text-sm font-semibold">
+                                                <h3 className="text-xs font-semibold sm:text-sm">
                                                     {feature.title}
                                                 </h3>
-                                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                                <p className="mt-0.5 flex-1 text-[10px] leading-relaxed text-muted-foreground sm:text-xs">
                                                     {feature.description}
                                                 </p>
                                             </CardContent>
@@ -365,8 +386,8 @@ export default function UploadPage({
 
                 {/* Upload Form */}
                 <FadeIn delay={dataset ? 0.05 : 0.2}>
-                    <Card className="overflow-hidden">
-                        <div className="h-1.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+                    <Card className="overflow-hidden border-border/40 shadow-sm">
+                        <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
                         <CardHeader className="px-4 pb-4 sm:px-6">
                             <CardTitle className="flex items-center gap-2">
                                 <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white">
@@ -439,11 +460,11 @@ export default function UploadPage({
                                     </div>
                                     <Button
                                         type="submit"
-                                        disabled={processing}
+                                        disabled={uploading}
                                         className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md transition-shadow hover:from-blue-600 hover:to-purple-700 hover:shadow-lg sm:w-auto"
                                     >
                                         <Upload className="size-4" />
-                                        {processing ? 'Uploading...' : 'Upload'}
+                                        {uploading ? 'Uploading...' : 'Upload'}
                                     </Button>
                                 </div>
 
@@ -729,8 +750,8 @@ export default function UploadPage({
                     </FadeIn>
                 )}
 
-                {/* Existing Datasets */}
-                {datasetsList.length > 0 ? (
+                {/* Existing Datasets (authenticated users only) */}
+                {datasets && datasetsList.length > 0 ? (
                     <FadeIn delay={dataset ? 0.15 : 0.3}>
                         <Card>
                             <CardHeader className="px-4 sm:px-6">
@@ -794,7 +815,7 @@ export default function UploadPage({
                                                         variant="destructive"
                                                         size="sm"
                                                         onClick={() =>
-                                                            confirmDelete(ds.id)
+                                                            setDeleteTarget(ds.id)
                                                         }
                                                         disabled={
                                                             deleteForm.processing
@@ -916,7 +937,7 @@ export default function UploadPage({
                                                                 variant="destructive"
                                                                 size="sm"
                                                                 onClick={() =>
-                                                                    confirmDelete(
+                                                                    setDeleteTarget(
                                                                         ds.id,
                                                                     )
                                                                 }
@@ -935,7 +956,7 @@ export default function UploadPage({
                                 </div>
 
                                 {/* Datasets list pagination */}
-                                {datasets.last_page > 1 && (
+                                {datasets && datasets.last_page > 1 && (
                                     <div className="mt-4 flex items-center justify-between border-t pt-4">
                                         <p className="text-sm text-muted-foreground">
                                             Showing {datasetsFrom} to{' '}
@@ -1020,10 +1041,10 @@ export default function UploadPage({
                             </CardContent>
                         </Card>
                     </FadeIn>
-                ) : (
-                    /* Empty state when no datasets exist */
+                ) : datasets && datasetsList.length === 0 ? (
+                    /* Empty state when no datasets exist (authenticated only) */
                     <FadeInScale delay={0.35}>
-                        <Card className="border-dashed">
+                        <Card className="border-dashed border-border/40">
                             <CardContent className="flex flex-col items-center justify-center py-16 text-center">
                                 <motion.div
                                     initial={{ scale: 0, rotate: -10 }}
@@ -1034,9 +1055,9 @@ export default function UploadPage({
                                         damping: 15,
                                         delay: 0.3,
                                     }}
-                                    className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30"
+                                    className="mb-4 flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 text-white shadow-lg shadow-blue-500/20"
                                 >
-                                    <Database className="size-8 text-blue-600 dark:text-blue-400" />
+                                    <Database className="size-8" />
                                 </motion.div>
                                 <motion.h3
                                     initial={{ opacity: 0, y: 10 }}
@@ -1058,7 +1079,7 @@ export default function UploadPage({
                             </CardContent>
                         </Card>
                     </FadeInScale>
-                )}
+                ) : null}
 
                 {/* Data Preview */}
                 {dataset && displayData.length > 0 && (
@@ -1206,6 +1227,37 @@ export default function UploadPage({
                     </AnimatedCard>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={deleteTarget !== null}
+                onOpenChange={(open) => !open && setDeleteTarget(null)}
+                title="Delete Dataset?"
+                description="This action cannot be undone. The dataset and all its data will be permanently removed."
+                confirmLabel="Delete"
+                destructive
+                processing={deleteForm.processing}
+                onConfirm={() => {
+                    if (deleteTarget !== null) {
+                        deleteForm.delete(`/datasets/${deleteTarget}`);
+                    }
+                }}
+            />
+
+            <ConfirmDialog
+                open={unlinkTarget !== null}
+                onOpenChange={(open) => !open && setUnlinkTarget(null)}
+                title="Remove Relationship?"
+                description="This will unlink the datasets. The datasets themselves will not be deleted."
+                confirmLabel="Remove"
+                destructive
+                onConfirm={() => {
+                    if (dataset && unlinkTarget !== null) {
+                        router.delete(
+                            `/datasets/${dataset.id}/relationships/${unlinkTarget}`,
+                        );
+                    }
+                }}
+            />
         </DatasetLayout>
     );
 }

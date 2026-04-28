@@ -19,10 +19,15 @@ class DatasetController extends Controller
 {
     public function index(Request $request): Response
     {
-        $page = (int) $request->query('page', 1);
-        $perPage = 10;
-        $datasets = Dataset::latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
-        $allDatasets = Dataset::orderBy('name')->get(['id', 'name']);
+        if ($request->user()) {
+            $perPage = 10;
+            $query = Dataset::where('user_id', $request->user()->id);
+            $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+            $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
+        } else {
+            $datasets = null;
+            $allDatasets = [];
+        }
 
         return Inertia::render('datasets/upload', [
             'datasets' => $datasets,
@@ -37,6 +42,14 @@ class DatasetController extends Controller
             'files.*' => ['required', File::types(['csv', 'xlsx', 'xls'])->max(10 * 1024)],
             'name' => ['required', 'string', 'max:255'],
         ]);
+
+        // Guest uploads are temporary — delete this session's previous guest dataset
+        if (! $request->user()) {
+            $previousId = $request->session()->get('guest_dataset_id');
+            if ($previousId) {
+                Dataset::where('id', $previousId)->whereNull('user_id')->delete();
+            }
+        }
 
         $files = $request->file('files');
         $createdDatasets = [];
@@ -68,6 +81,7 @@ class DatasetController extends Controller
 
             $createdDatasets[] = Dataset::create([
                 'name' => $datasetName,
+                'user_id' => $request->user()?->id,
                 'original_filename' => $file->getClientOriginalName(),
                 'file_path' => $path,
                 'file_type' => $extension,
@@ -103,16 +117,26 @@ class DatasetController extends Controller
             ? 'Dataset uploaded successfully.'
             : "{$count} datasets uploaded and linked successfully.";
 
+        // Track guest dataset in session so we can clean it up on next upload
+        if (! $request->user()) {
+            $request->session()->put('guest_dataset_id', $lastDataset->id);
+        }
+
         return redirect()->route('datasets.show', $lastDataset)
             ->with('toast', ['type' => 'success', 'message' => $message]);
     }
 
     public function show(Dataset $dataset, Request $request): Response
     {
-        $page = (int) $request->query('page', 1);
-        $perPage = 10;
-        $datasets = Dataset::latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
-        $allDatasets = Dataset::orderBy('name')->get(['id', 'name']);
+        if ($request->user()) {
+            $perPage = 10;
+            $query = Dataset::where('user_id', $request->user()->id);
+            $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+            $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
+        } else {
+            $datasets = null;
+            $allDatasets = [];
+        }
 
         // Paginate the data preview
         $allData = $dataset->original_data;
@@ -704,9 +728,13 @@ class DatasetController extends Controller
         ]);
     }
 
-    public function merge(): Response
+    public function merge(Request $request): Response
     {
-        $datasets = Dataset::latest()->get(['id', 'name', 'original_filename', 'row_count', 'column_count', 'headers']);
+        $query = $request->user()
+            ? Dataset::where('user_id', $request->user()->id)
+            : Dataset::whereNull('user_id');
+
+        $datasets = $query->latest()->get(['id', 'name', 'original_filename', 'row_count', 'column_count', 'headers']);
 
         return Inertia::render('datasets/merge', [
             'datasets' => $datasets,
@@ -807,6 +835,7 @@ class DatasetController extends Controller
 
         $dataset = Dataset::create([
             'name' => $request->input('name'),
+            'user_id' => $request->user()?->id,
             'original_filename' => "Merged: {$datasetA->name} + {$datasetB->name}",
             'file_path' => '',
             'file_type' => 'merged',

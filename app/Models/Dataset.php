@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\DatasetFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Dataset extends Model
@@ -14,6 +15,7 @@ class Dataset extends Model
 
     protected $fillable = [
         'name',
+        'user_id',
         'original_filename',
         'file_path',
         'file_type',
@@ -25,6 +27,14 @@ class Dataset extends Model
         'cleaning_log',
         'profile',
     ];
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
 
     /**
      * @return BelongsToMany<self, $this>

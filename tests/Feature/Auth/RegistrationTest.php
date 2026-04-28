@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\User;
-
 test('registration screen can be rendered', function () {
     $response = $this->get(route('register'));
 
@@ -17,7 +15,5 @@ test('new users can register', function () {
     ]);
 
     $this->assertAuthenticated();
-
-    $user = User::where('email', 'test@example.com')->first();
-    $response->assertRedirect(route('datasets.index'));
+    $response->assertRedirect('/');
 });

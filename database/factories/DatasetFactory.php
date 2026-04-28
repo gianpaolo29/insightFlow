@@ -17,6 +17,7 @@ class DatasetFactory extends Factory
     {
         return [
             'name' => fake()->words(2, true),
+            'user_id' => null,
             'original_filename' => fake()->word().'.csv',
             'file_path' => 'datasets/'.fake()->uuid().'.csv',
             'file_type' => 'csv',

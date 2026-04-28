@@ -39,7 +39,8 @@
       "Bash(\"C:/Users/Windows/.config/herd/bin/php84/php.exe\" artisan:*)",
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
-      "Bash(composer update:*)"
+      "Bash(composer update:*)",
+      "Bash(npm uninstall:*)"
     ]
   },
   "disabledMcpjsonServers": [
