@@ -290,7 +290,7 @@ export default function AnalyzePage({ dataset, insights }: Props) {
                                                                 </td>
                                                                 <td className="px-3 py-2">
                                                                     <div className="flex items-center gap-2">
-                                                                        <div className="h-2 w-full max-w-[200px] rounded-full bg-slate-100 dark:bg-slate-800">
+                                                                        <div className="h-2 w-full max-w-[140px] sm:max-w-[200px] rounded-full bg-slate-100 dark:bg-slate-800">
                                                                             <motion.div
                                                                                 className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500"
                                                                                 initial={{

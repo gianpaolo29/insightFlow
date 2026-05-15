@@ -5,19 +5,22 @@ import {
     Database,
     FileUp,
     GitCompareArrows,
+    LayoutDashboard,
     Lightbulb,
-    LogIn,
     LogOut,
+    Menu,
     Settings,
     Sparkles,
     Wrench,
+    X,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
-import { AppSidebarHeader } from '@/components/app-sidebar-header';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -28,43 +31,21 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarGroup,
-    SidebarGroupLabel,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuButton,
-    SidebarMenuItem,
-    SidebarSeparator,
-} from '@/components/ui/sidebar';
-import { UserInfo } from '@/components/user-info';
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetTrigger,
+} from '@/components/ui/sheet';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { login, logout } from '@/routes';
+import { useInitials } from '@/hooks/use-initials';
+import { logout } from '@/routes';
 import { edit } from '@/routes/profile';
 import type { BreadcrumbItem, User } from '@/types';
 
 type Dataset = {
     id: number;
     name?: string;
-};
-
-const staggerContainer = {
-    hidden: { opacity: 0 },
-    visible: {
-        opacity: 1,
-        transition: { staggerChildren: 0.06, delayChildren: 0.15 },
-    },
-};
-
-const staggerItem = {
-    hidden: { opacity: 0, x: -12 },
-    visible: {
-        opacity: 1,
-        x: 0,
-        transition: { duration: 0.35, ease: 'easeOut' as const },
-    },
 };
 
 export default function DatasetLayout({
@@ -74,10 +55,12 @@ export default function DatasetLayout({
     children: ReactNode;
     breadcrumbs?: BreadcrumbItem[];
 }) {
-    const page = usePage<{ dataset?: Dataset; auth: { user: User | null } }>();
+    const page = usePage<{ dataset?: Dataset; auth: { user: User } }>();
     const dataset = page.props.dataset;
     const user = page.props.auth.user;
     const { isCurrentUrl } = useCurrentUrl();
+    const getInitials = useInitials();
+    const [mobileOpen, setMobileOpen] = useState(false);
     const [showLogout, setShowLogout] = useState(false);
 
     const navItems = useMemo(() => {
@@ -123,6 +106,12 @@ export default function DatasetLayout({
                     icon: BarChart3,
                     color: 'from-cyan-500 to-cyan-600',
                 },
+                {
+                    title: 'Dashboard',
+                    href: `/datasets/${id}/dashboard`,
+                    icon: LayoutDashboard,
+                    color: 'from-pink-500 to-pink-600',
+                },
             );
         }
 
@@ -130,224 +119,261 @@ export default function DatasetLayout({
     }, [dataset]);
 
     return (
-        <>
-        <AppShell variant="sidebar">
-            <Sidebar collapsible="icon" variant="inset">
-                <SidebarHeader>
-                    <SidebarMenu>
-                        <SidebarMenuItem>
-                            <SidebarMenuButton size="lg" asChild>
-                                <Link href="/">
-                                    <motion.div
-                                        initial={{ scale: 0, rotate: -180 }}
-                                        animate={{ scale: 1, rotate: 0 }}
-                                        transition={{
-                                            type: 'spring',
-                                            stiffness: 200,
-                                            damping: 15,
-                                            delay: 0.1,
-                                        }}
-                                        className="flex aspect-square size-8 items-center justify-center rounded-md bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white shadow-md"
+        <AppShell variant="header">
+            {/* Top Navigation Bar */}
+            <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-xl">
+                <div className="mx-auto flex h-16 items-center gap-4 px-4 md:max-w-7xl">
+                    {/* Mobile hamburger */}
+                    <div className="lg:hidden">
+                        <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
+                            <SheetTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-9"
+                                >
+                                    <Menu className="size-5" />
+                                </Button>
+                            </SheetTrigger>
+                            <SheetContent
+                                side="left"
+                                className="flex w-72 flex-col bg-background p-0"
+                            >
+                                <SheetTitle className="sr-only">
+                                    Navigation
+                                </SheetTitle>
+                                <SheetHeader className="border-b px-4 py-4">
+                                    <Link
+                                        href="/"
+                                        className="flex items-center gap-2.5"
+                                        onClick={() => setMobileOpen(false)}
                                     >
-                                        <Sparkles className="size-5" />
-                                    </motion.div>
-                                    <div className="ml-1 grid flex-1 text-left text-sm">
-                                        <span className="mb-0.5 truncate leading-tight font-semibold">
+                                        <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white shadow-sm">
+                                            <Sparkles className="size-4" />
+                                        </div>
+                                        <span className="text-base font-semibold">
                                             InsightFlow
                                         </span>
-                                        <span className="truncate text-xs text-muted-foreground">
-                                            Data Analytics
-                                        </span>
-                                    </div>
-                                </Link>
-                            </SidebarMenuButton>
-                        </SidebarMenuItem>
-                    </SidebarMenu>
-                </SidebarHeader>
+                                    </Link>
+                                </SheetHeader>
 
-                <SidebarContent>
-                    <SidebarGroup className="px-2 py-0">
-                        <SidebarGroupLabel>Workflow</SidebarGroupLabel>
-                        <motion.div
-                            variants={staggerContainer}
-                            initial="hidden"
-                            animate="visible"
-                        >
-                            <SidebarMenu>
-                                {navItems.map((item) => {
-                                    const active = isCurrentUrl(item.href);
+                                {/* Mobile nav items */}
+                                <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-3">
+                                    <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                        Workflow
+                                    </p>
+                                    {navItems.map((item) => {
+                                        const active = isCurrentUrl(item.href);
 
-                                    return (
-                                        <motion.div
-                                            key={item.title}
-                                            variants={staggerItem}
-                                        >
-                                            <SidebarMenuItem>
-                                                <SidebarMenuButton
-                                                    asChild
-                                                    isActive={active}
-                                                    tooltip={{
-                                                        children: item.title,
-                                                    }}
-                                                >
-                                                    <Link href={item.href}>
-                                                        <div
-                                                            className={`flex size-5 items-center justify-center rounded ${active ? `bg-gradient-to-br ${item.color} text-white` : ''}`}
-                                                        >
-                                                            <item.icon
-                                                                className={
-                                                                    active
-                                                                        ? 'size-3'
-                                                                        : 'size-4'
-                                                                }
-                                                            />
-                                                        </div>
-                                                        <span>
-                                                            {item.title}
-                                                        </span>
-                                                    </Link>
-                                                </SidebarMenuButton>
-                                            </SidebarMenuItem>
-                                        </motion.div>
-                                    );
-                                })}
-                            </SidebarMenu>
-                        </motion.div>
-                    </SidebarGroup>
-
-                    {dataset && 'name' in dataset && dataset.name && (
-                        <>
-                            <SidebarSeparator />
-                            <SidebarGroup className="px-2 py-0">
-                                <SidebarGroupLabel>
-                                    Active Dataset
-                                </SidebarGroupLabel>
-                                <motion.div
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: 0.4, duration: 0.4 }}
-                                >
-                                    <SidebarMenu>
-                                        <SidebarMenuItem>
-                                            <SidebarMenuButton
-                                                asChild
-                                                tooltip={{
-                                                    children: dataset.name,
-                                                }}
+                                        return (
+                                            <Link
+                                                key={item.title}
+                                                href={item.href}
+                                                onClick={() =>
+                                                    setMobileOpen(false)
+                                                }
+                                                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                                                    active
+                                                        ? 'bg-primary/10 text-primary'
+                                                        : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                                                }`}
                                             >
-                                                <Link
-                                                    href={`/datasets/${dataset.id}`}
+                                                <div
+                                                    className={`flex size-7 items-center justify-center rounded-md ${
+                                                        active
+                                                            ? `bg-gradient-to-br ${item.color} text-white shadow-sm`
+                                                            : 'bg-muted'
+                                                    }`}
                                                 >
-                                                    <div className="flex size-5 items-center justify-center rounded bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
-                                                        <Database className="size-3" />
-                                                    </div>
-                                                    <span className="truncate">
+                                                    <item.icon className="size-3.5" />
+                                                </div>
+                                                {item.title}
+                                            </Link>
+                                        );
+                                    })}
+
+                                    {dataset &&
+                                        'name' in dataset &&
+                                        dataset.name && (
+                                            <>
+                                                <div className="my-3 border-t" />
+                                                <p className="mb-2 px-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                                    Active Dataset
+                                                </p>
+                                                <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 px-3 py-2.5">
+                                                    <Database className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                                    <span className="truncate text-sm font-medium text-emerald-700 dark:text-emerald-300">
                                                         {dataset.name}
                                                     </span>
-                                                </Link>
-                                            </SidebarMenuButton>
-                                        </SidebarMenuItem>
-                                    </SidebarMenu>
-                                </motion.div>
-                            </SidebarGroup>
-                        </>
-                    )}
-                </SidebarContent>
+                                                </div>
+                                            </>
+                                        )}
+                                </nav>
 
-                <SidebarFooter>
-                    <SidebarMenu>
-                        {user ? (
-                            <SidebarMenuItem>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <SidebarMenuButton
-                                            size="lg"
-                                            className="cursor-pointer"
-                                        >
-                                            <UserInfo
-                                                user={user}
-                                                showEmail={true}
+                                {/* Mobile user info */}
+                                <div className="border-t p-4">
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="size-9">
+                                            <AvatarImage
+                                                src={user.avatar}
+                                                alt={user.name}
                                             />
-                                        </SidebarMenuButton>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                        className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                                        side="top"
-                                        align="start"
-                                        sideOffset={4}
-                                    >
-                                        <DropdownMenuLabel className="p-0 font-normal">
-                                            <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                                                <UserInfo
-                                                    user={user}
-                                                    showEmail={true}
-                                                />
-                                            </div>
-                                        </DropdownMenuLabel>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuGroup>
-                                            <DropdownMenuItem asChild>
-                                                <Link
-                                                    className="block w-full cursor-pointer"
-                                                    href={edit()}
-                                                    prefetch
-                                                >
-                                                    <Settings className="mr-2" />
-                                                    Settings
-                                                </Link>
-                                            </DropdownMenuItem>
-                                        </DropdownMenuGroup>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem
-                                            className="cursor-pointer"
-                                            onClick={() => setShowLogout(true)}
-                                        >
-                                            <LogOut className="mr-2" />
-                                            Log out
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </SidebarMenuItem>
-                        ) : (
-                            <SidebarMenuItem>
-                                <SidebarMenuButton
-                                    asChild
-                                    tooltip={{ children: 'Sign in' }}
+                                            <AvatarFallback className="bg-primary/10 text-sm font-medium text-primary">
+                                                {getInitials(user.name)}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium">
+                                                {user.name}
+                                            </p>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {user.email}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </SheetContent>
+                        </Sheet>
+                    </div>
+
+                    {/* Logo */}
+                    <Link
+                        href="/"
+                        className="flex shrink-0 items-center gap-2"
+                    >
+                        <motion.div
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{
+                                type: 'spring',
+                                stiffness: 200,
+                                damping: 15,
+                            }}
+                            className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 text-white shadow-sm"
+                        >
+                            <Sparkles className="size-4" />
+                        </motion.div>
+                        <span className="hidden text-base font-semibold sm:inline">
+                            InsightFlow
+                        </span>
+                    </Link>
+
+                    {/* Desktop navigation */}
+                    <nav className="ml-2 hidden h-full items-center gap-0.5 lg:flex">
+                        {navItems.map((item) => {
+                            const active = isCurrentUrl(item.href);
+
+                            return (
+                                <Link
+                                    key={item.title}
+                                    href={item.href}
+                                    className={`relative flex h-full items-center gap-1.5 px-3 text-sm font-medium transition-colors ${
+                                        active
+                                            ? 'text-foreground'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    }`}
                                 >
-                                    <Link href={login()}>
-                                        <LogIn className="size-4" />
-                                        <span>Sign in</span>
-                                    </Link>
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        )}
-                    </SidebarMenu>
-                </SidebarFooter>
-            </Sidebar>
-            <AppContent variant="sidebar">
-                <AppSidebarHeader breadcrumbs={breadcrumbs} />
+                                    <item.icon className="size-4" />
+                                    <span>{item.title}</span>
+                                    {active && (
+                                        <motion.div
+                                            layoutId="activeTab"
+                                            className={`absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-r ${item.color}`}
+                                            transition={{
+                                                type: 'spring',
+                                                stiffness: 300,
+                                                damping: 25,
+                                            }}
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Right side */}
+                    <div className="ml-auto flex items-center gap-2">
+                        {/* User menu */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    className="size-9 rounded-full p-0"
+                                >
+                                    <Avatar className="size-8">
+                                        <AvatarImage
+                                            src={user.avatar}
+                                            alt={user.name}
+                                        />
+                                        <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
+                                            {getInitials(user.name)}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                className="w-56"
+                                align="end"
+                                sideOffset={8}
+                            >
+                                <DropdownMenuLabel className="font-normal">
+                                    <div className="flex flex-col space-y-1">
+                                        <p className="text-sm font-medium leading-none">
+                                            {user.name}
+                                        </p>
+                                        <p className="text-xs leading-none text-muted-foreground">
+                                            {user.email}
+                                        </p>
+                                    </div>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem asChild>
+                                        <Link
+                                            className="w-full cursor-pointer"
+                                            href={edit()}
+                                        >
+                                            <Settings className="mr-2 size-4" />
+                                            Settings
+                                        </Link>
+                                    </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    onClick={() => setShowLogout(true)}
+                                >
+                                    <LogOut className="mr-2 size-4" />
+                                    Log out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </div>
+            </header>
+
+            <AppContent variant="header">
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
-                    className="flex-1 overflow-x-hidden"
+                    transition={{ duration: 0.3 }}
+                    className="flex-1"
                 >
                     {children}
                 </motion.div>
             </AppContent>
-        </AppShell>
 
-        <ConfirmDialog
-            open={showLogout}
-            onOpenChange={setShowLogout}
-            title="Log out?"
-            description="Are you sure you want to log out of your account?"
-            confirmLabel="Log out"
-            onConfirm={() => {
-                router.flushAll();
-                router.post(logout.url());
-            }}
-        />
-        </>
+            <ConfirmDialog
+                open={showLogout}
+                onOpenChange={setShowLogout}
+                title="Log out?"
+                description="Are you sure you want to log out of your account?"
+                confirmLabel="Log out"
+                onConfirm={() => {
+                    router.flushAll();
+                    router.post(logout.url());
+                }}
+            />
+        </AppShell>
     );
 }

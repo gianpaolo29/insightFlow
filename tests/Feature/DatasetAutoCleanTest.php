@@ -1,8 +1,11 @@
 <?php
 
 use App\Models\Dataset;
+use App\Models\User;
 
 test('auto clean handles missing values duplicates and standardization', function () {
+    $this->actingAs(User::factory()->create());
+
     $dataset = Dataset::factory()->create([
         'headers' => ['Name', 'Age', 'City'],
         'original_data' => [
@@ -36,6 +39,8 @@ test('auto clean handles missing values duplicates and standardization', functio
 });
 
 test('auto clean caps outliers using iqr method', function () {
+    $this->actingAs(User::factory()->create());
+
     $dataset = Dataset::factory()->create([
         'headers' => ['Name', 'Score'],
         'original_data' => [
@@ -66,6 +71,8 @@ test('auto clean caps outliers using iqr method', function () {
 });
 
 test('auto clean filters invalid ages', function () {
+    $this->actingAs(User::factory()->create());
+
     $dataset = Dataset::factory()->create([
         'headers' => ['Name', 'Age'],
         'original_data' => [
@@ -89,6 +96,8 @@ test('auto clean filters invalid ages', function () {
 });
 
 test('auto clean generates total column for price and quantity', function () {
+    $this->actingAs(User::factory()->create());
+
     $dataset = Dataset::factory()->create([
         'headers' => ['Product', 'Price', 'Quantity'],
         'original_data' => [
@@ -110,10 +119,12 @@ test('auto clean generates total column for price and quantity', function () {
 
     // Verify calculated values
     $firstRow = $dataset->cleaned_data[0];
-    expect($firstRow['Total'])->toBe(50.0); // 10 * 5
+    expect((float) $firstRow['Total'])->toBe(50.0); // 10 * 5
 });
 
 test('dataset pages render successfully', function () {
+    $this->actingAs(User::factory()->create());
+
     $response = $this->get('/');
     $response->assertStatus(200);
 });

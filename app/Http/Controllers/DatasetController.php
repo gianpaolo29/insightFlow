@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Imports\DatasetImport;
 use App\Models\Dataset;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rules\File;
@@ -19,15 +20,10 @@ class DatasetController extends Controller
 {
     public function index(Request $request): Response
     {
-        if ($request->user()) {
-            $perPage = 10;
-            $query = Dataset::where('user_id', $request->user()->id);
-            $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
-            $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
-        } else {
-            $datasets = null;
-            $allDatasets = [];
-        }
+        $perPage = 10;
+        $query = Dataset::where('user_id', $request->user()->id);
+        $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+        $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
 
         return Inertia::render('datasets/upload', [
             'datasets' => $datasets,
@@ -40,16 +36,7 @@ class DatasetController extends Controller
         $request->validate([
             'files' => ['required', 'array', 'min:1'],
             'files.*' => ['required', File::types(['csv', 'xlsx', 'xls'])->max(10 * 1024)],
-            'name' => ['required', 'string', 'max:255'],
         ]);
-
-        // Guest uploads are temporary — delete this session's previous guest dataset
-        if (! $request->user()) {
-            $previousId = $request->session()->get('guest_dataset_id');
-            if ($previousId) {
-                Dataset::where('id', $previousId)->whereNull('user_id')->delete();
-            }
-        }
 
         $files = $request->file('files');
         $createdDatasets = [];
@@ -75,13 +62,11 @@ class DatasetController extends Controller
 
             $profile = $this->generateProfile($headers, $data);
 
-            $datasetName = count($files) > 1
-                ? $request->input('name').' - '.pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)
-                : $request->input('name');
+            $datasetName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
 
             $createdDatasets[] = Dataset::create([
                 'name' => $datasetName,
-                'user_id' => $request->user()?->id,
+                'user_id' => $request->user()->id,
                 'original_filename' => $file->getClientOriginalName(),
                 'file_path' => $path,
                 'file_type' => $extension,
@@ -117,26 +102,16 @@ class DatasetController extends Controller
             ? 'Dataset uploaded successfully.'
             : "{$count} datasets uploaded and linked successfully.";
 
-        // Track guest dataset in session so we can clean it up on next upload
-        if (! $request->user()) {
-            $request->session()->put('guest_dataset_id', $lastDataset->id);
-        }
-
         return redirect()->route('datasets.show', $lastDataset)
             ->with('toast', ['type' => 'success', 'message' => $message]);
     }
 
     public function show(Dataset $dataset, Request $request): Response
     {
-        if ($request->user()) {
-            $perPage = 10;
-            $query = Dataset::where('user_id', $request->user()->id);
-            $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
-            $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
-        } else {
-            $datasets = null;
-            $allDatasets = [];
-        }
+        $perPage = 10;
+        $query = Dataset::where('user_id', $request->user()->id);
+        $datasets = (clone $query)->latest()->paginate($perPage, ['id', 'name', 'original_filename', 'file_type', 'row_count', 'column_count', 'created_at']);
+        $allDatasets = (clone $query)->orderBy('name')->get(['id', 'name']);
 
         // Paginate the data preview
         $allData = $dataset->original_data;
@@ -304,7 +279,7 @@ class DatasetController extends Controller
             $totalMissing += count($values) - count($nonNull);
             $columnTypes[$header] = $this->detectType($nonNull);
         }
-        $log[] = ['type' => 'inspection', 'message' => "Inspected {$originalRowCount} rows, ".count($headers)." columns. Found {$totalMissing} total missing values."];
+        $log[] = ['type' => 'inspection', 'message' => "Inspected {$originalRowCount} rows, ".count($headers)." columns. Found {$totalMissing} total missing values.", 'reason' => 'Initial data inspection identifies the scope of cleaning needed and determines which cleaning strategies to apply.'];
         $summary['transformations'][] = 'Data inspection completed';
 
         // Step 2: Remove rows with >50% missing values
@@ -323,7 +298,7 @@ class DatasetController extends Controller
         $data = array_values($data);
         $removedHighMissing = $beforeCount - count($data);
         if ($removedHighMissing > 0) {
-            $log[] = ['type' => 'remove_missing_rows', 'message' => "Removed {$removedHighMissing} rows with >50% missing values."];
+            $log[] = ['type' => 'remove_missing_rows', 'message' => "Removed {$removedHighMissing} rows with >50% missing values.", 'reason' => 'Rows with more than half their values missing cannot be reliably imputed and would introduce noise into the analysis.'];
             $summary['rows_affected'] += $removedHighMissing;
             $summary['transformations'][] = "Removed {$removedHighMissing} rows with excessive missing values";
         }
@@ -428,6 +403,7 @@ class DatasetController extends Controller
                     $log[] = [
                         'type' => 'context_fill',
                         'message' => "Inferred {$filledInCol} missing values in '{$targetCol}' using '{$bestPredictor}' as predictor (".round($bestConfidence * 100).'% confidence).',
+                        'reason' => "Values in '{$bestPredictor}' consistently map to specific '{$targetCol}' values, so we can reliably predict the missing values instead of using generic fill methods.",
                     ];
                 }
             }
@@ -463,7 +439,7 @@ class DatasetController extends Controller
                     }
                     unset($row);
                     $summary['columns_modified'][] = $header;
-                    $log[] = ['type' => 'fill_missing', 'message' => "Filled {$missingInCol} missing values in '{$header}' with mean ({$mean})."];
+                    $log[] = ['type' => 'fill_missing', 'message' => "Filled {$missingInCol} missing values in '{$header}' with mean ({$mean}).", 'reason' => 'Mean imputation preserves the central tendency of numeric data, minimizing distortion to statistical analysis.'];
                 }
             } else {
                 $frequency = array_count_values(array_map('strval', $nonNull));
@@ -477,7 +453,7 @@ class DatasetController extends Controller
                 }
                 unset($row);
                 $summary['columns_modified'][] = $header;
-                $log[] = ['type' => 'fill_missing', 'message' => "Filled {$missingInCol} missing values in '{$header}' with mode ('{$mode}')."];
+                $log[] = ['type' => 'fill_missing', 'message' => "Filled {$missingInCol} missing values in '{$header}' with mode ('{$mode}').", 'reason' => 'Mode imputation uses the most frequent value for categorical data, which is the most likely correct value based on the existing distribution.'];
             }
         }
         $summary['missing_values_handled'] = $filledCount + $contextFilled;
@@ -500,7 +476,7 @@ class DatasetController extends Controller
         $dupsRemoved = $beforeCount - count($data);
         $summary['duplicates_removed'] = $dupsRemoved;
         if ($dupsRemoved > 0) {
-            $log[] = ['type' => 'remove_duplicates', 'message' => "Removed {$dupsRemoved} duplicate rows."];
+            $log[] = ['type' => 'remove_duplicates', 'message' => "Removed {$dupsRemoved} duplicate rows.", 'reason' => 'Duplicate rows inflate counts and skew statistical analysis. Each observation should be unique to ensure accurate results.'];
             $summary['rows_affected'] += $dupsRemoved;
             $summary['transformations'][] = "Removed {$dupsRemoved} duplicate rows";
         }
@@ -556,7 +532,7 @@ class DatasetController extends Controller
             }
         }
         if ($conversions > 0) {
-            $log[] = ['type' => 'convert_type', 'message' => "Converted {$conversions} values (numeric text to numbers, dates to YYYY-MM-DD, booleans standardized)."];
+            $log[] = ['type' => 'convert_type', 'message' => "Converted {$conversions} values (numeric text to numbers, dates to YYYY-MM-DD, booleans standardized).", 'reason' => 'Proper data types enable accurate mathematical operations, date comparisons, and boolean logic. Text-stored numbers cannot be summed or averaged.'];
             $summary['transformations'][] = "Converted {$conversions} values to proper types";
         }
 
@@ -605,11 +581,11 @@ class DatasetController extends Controller
             }
         }
         if ($trimmed > 0) {
-            $log[] = ['type' => 'trim_spaces', 'message' => "Trimmed extra spaces in {$trimmed} values."];
+            $log[] = ['type' => 'trim_spaces', 'message' => "Trimmed extra spaces in {$trimmed} values.", 'reason' => 'Leading/trailing whitespace causes identical values to appear different, breaking grouping, deduplication, and lookup operations.'];
             $summary['transformations'][] = "Trimmed spaces in {$trimmed} values";
         }
         if ($normalized > 0) {
-            $log[] = ['type' => 'normalize', 'message' => "Normalized {$normalized} categorical values to consistent Title Case."];
+            $log[] = ['type' => 'normalize', 'message' => "Normalized {$normalized} categorical values to consistent Title Case.", 'reason' => "Inconsistent casing (e.g., 'london' vs 'London') causes the same category to be counted separately, leading to fragmented analysis."];
             $summary['transformations'][] = "Normalized {$normalized} categorical values";
         }
 
@@ -659,7 +635,7 @@ class DatasetController extends Controller
             unset($row);
         }
         if ($outliersCapped > 0) {
-            $log[] = ['type' => 'handle_outliers', 'message' => "Capped {$outliersCapped} outlier values using IQR method (1.5x IQR bounds)."];
+            $log[] = ['type' => 'handle_outliers', 'message' => "Capped {$outliersCapped} outlier values using IQR method (1.5x IQR bounds).", 'reason' => 'Extreme outliers disproportionately affect mean, standard deviation, and regression models. IQR capping preserves the data point while limiting its distorting effect.'];
             $summary['transformations'][] = "Capped {$outliersCapped} outlier values using IQR method";
         }
 
@@ -691,7 +667,7 @@ class DatasetController extends Controller
         }
         $invalidRemoved = $beforeCount - count($data);
         if ($invalidRemoved > 0) {
-            $log[] = ['type' => 'filter_invalid', 'message' => "Removed {$invalidRemoved} rows with impossible values (negative prices, invalid ages, etc.)."];
+            $log[] = ['type' => 'filter_invalid', 'message' => "Removed {$invalidRemoved} rows with impossible values (negative prices, invalid ages, etc.).", 'reason' => 'Domain-specific validation catches data entry errors: ages must be 0-150, prices cannot be negative. These values are factually impossible and would corrupt analysis.'];
             $summary['rows_affected'] += $invalidRemoved;
             $summary['transformations'][] = "Removed {$invalidRemoved} rows with invalid data";
         }
@@ -723,7 +699,7 @@ class DatasetController extends Controller
                     $row['Total'] = round($price * $qty, 2);
                 }
                 unset($row);
-                $log[] = ['type' => 'transform', 'message' => "Generated 'Total' column (Price x Quantity)."];
+                $log[] = ['type' => 'transform', 'message' => "Generated 'Total' column (Price x Quantity).", 'reason' => 'Price and Quantity columns were detected, so a computed Total column was generated to enable revenue analysis without manual calculation.'];
                 $summary['transformations'][] = "Generated 'Total' column from Price x Quantity";
             }
         }
@@ -752,8 +728,15 @@ class DatasetController extends Controller
 
     public function compare(Dataset $dataset): Response
     {
+        $originalQuality = $this->calculateQualityScore($dataset->headers, $dataset->original_data);
+        $cleanedQuality = $dataset->cleaned_data
+            ? $this->calculateQualityScore($dataset->headers, $dataset->cleaned_data)
+            : null;
+
         return Inertia::render('datasets/compare', [
             'dataset' => $dataset,
+            'originalQuality' => $originalQuality,
+            'cleanedQuality' => $cleanedQuality,
         ]);
     }
 
@@ -838,9 +821,7 @@ class DatasetController extends Controller
 
     public function merge(Request $request): Response
     {
-        $query = $request->user()
-            ? Dataset::where('user_id', $request->user()->id)
-            : Dataset::whereNull('user_id');
+        $query = Dataset::where('user_id', $request->user()->id);
 
         $datasets = $query->latest()->get(['id', 'name', 'original_filename', 'row_count', 'column_count', 'headers']);
 
@@ -943,7 +924,7 @@ class DatasetController extends Controller
 
         $dataset = Dataset::create([
             'name' => $request->input('name'),
-            'user_id' => $request->user()?->id,
+            'user_id' => $request->user()->id,
             'original_filename' => "Merged: {$datasetA->name} + {$datasetB->name}",
             'file_path' => '',
             'file_type' => 'merged',
@@ -960,6 +941,362 @@ class DatasetController extends Controller
             ->with('toast', ['type' => 'success', 'message' => "Merged successfully! {$datasetA->name} + {$datasetB->name} = ".count($merged).' rows.']);
     }
 
+    public function dashboard(Dataset $dataset): Response
+    {
+        $data = $dataset->cleaned_data ?? $dataset->original_data;
+        $headers = $dataset->headers;
+        $insights = $this->generateInsights($headers, $data);
+        $qualityScore = $this->calculateQualityScore($headers, $data);
+
+        return Inertia::render('datasets/dashboard', [
+            'dataset' => $dataset->only('id', 'name', 'headers', 'row_count', 'column_count'),
+            'data' => $data,
+            'insights' => $insights,
+            'qualityScore' => $qualityScore,
+        ]);
+    }
+
+    public function sampleDatasets(): RedirectResponse
+    {
+        $samples = [
+            [
+                'name' => 'Sales Data (Sample)',
+                'filename' => 'sales_sample.csv',
+                'headers' => ['Product', 'Category', 'Price', 'Quantity', 'Date', 'Region'],
+                'data' => [
+                    ['Product' => 'Laptop', 'Category' => 'Electronics', 'Price' => '999', 'Quantity' => '5', 'Date' => '2025-01-15', 'Region' => 'North'],
+                    ['Product' => 'Mouse', 'Category' => 'Electronics', 'Price' => '25', 'Quantity' => '50', 'Date' => '2025-01-16', 'Region' => 'South'],
+                    ['Product' => 'Desk', 'Category' => 'Furniture', 'Price' => '350', 'Quantity' => '8', 'Date' => '2025-01-17', 'Region' => 'East'],
+                    ['Product' => 'Chair', 'Category' => 'Furniture', 'Price' => '200', 'Quantity' => '12', 'Date' => '2025-01-18', 'Region' => 'West'],
+                    ['Product' => 'Keyboard', 'Category' => 'Electronics', 'Price' => '75', 'Quantity' => '30', 'Date' => '2025-01-19', 'Region' => 'North'],
+                    ['Product' => 'Monitor', 'Category' => 'Electronics', 'Price' => '450', 'Quantity' => '7', 'Date' => '2025-01-20', 'Region' => 'South'],
+                    ['Product' => 'Lamp', 'Category' => 'Furniture', 'Price' => '45', 'Quantity' => '20', 'Date' => '2025-01-21', 'Region' => 'East'],
+                    ['Product' => 'Laptop', 'Category' => 'Electronics', 'Price' => '999', 'Quantity' => '3', 'Date' => '2025-02-01', 'Region' => 'West'],
+                    ['Product' => 'Headphones', 'Category' => 'Electronics', 'Price' => '150', 'Quantity' => '15', 'Date' => '2025-02-05', 'Region' => 'North'],
+                    ['Product' => 'Desk', 'Category' => 'Furniture', 'Price' => '350', 'Quantity' => '5', 'Date' => '2025-02-10', 'Region' => 'South'],
+                    ['Product' => 'mouse', 'Category' => 'Electronics', 'Price' => '25', 'Quantity' => '50', 'Date' => '2025-02-12', 'Region' => 'north'],
+                    ['Product' => '  Laptop  ', 'Category' => 'electronics', 'Price' => '999', 'Quantity' => '5', 'Date' => '2025-01-15', 'Region' => 'North'],
+                    ['Product' => 'Tablet', 'Category' => 'Electronics', 'Price' => '', 'Quantity' => '10', 'Date' => '2025-03-01', 'Region' => 'East'],
+                    ['Product' => '', 'Category' => '', 'Price' => '', 'Quantity' => '', 'Date' => '', 'Region' => ''],
+                    ['Product' => 'Phone', 'Category' => 'Electronics', 'Price' => '-50', 'Quantity' => '8', 'Date' => '2025-03-05', 'Region' => 'West'],
+                ],
+            ],
+            [
+                'name' => 'Student Grades (Sample)',
+                'filename' => 'student_grades_sample.csv',
+                'headers' => ['Name', 'Age', 'Subject', 'Score', 'Grade', 'Semester'],
+                'data' => [
+                    ['Name' => 'Alice', 'Age' => '20', 'Subject' => 'Math', 'Score' => '92', 'Grade' => 'A', 'Semester' => '1st'],
+                    ['Name' => 'Bob', 'Age' => '21', 'Subject' => 'Math', 'Score' => '78', 'Grade' => 'B', 'Semester' => '1st'],
+                    ['Name' => 'Charlie', 'Age' => '19', 'Subject' => 'Science', 'Score' => '85', 'Grade' => 'B', 'Semester' => '1st'],
+                    ['Name' => 'Diana', 'Age' => '22', 'Subject' => 'Math', 'Score' => '95', 'Grade' => 'A', 'Semester' => '1st'],
+                    ['Name' => 'Eve', 'Age' => '20', 'Subject' => 'Science', 'Score' => '88', 'Grade' => 'B', 'Semester' => '2nd'],
+                    ['Name' => 'Frank', 'Age' => '21', 'Subject' => 'English', 'Score' => '72', 'Grade' => 'C', 'Semester' => '2nd'],
+                    ['Name' => 'Grace', 'Age' => '', 'Subject' => 'Math', 'Score' => '91', 'Grade' => 'A', 'Semester' => '2nd'],
+                    ['Name' => 'Alice', 'Age' => '20', 'Subject' => 'Math', 'Score' => '92', 'Grade' => 'A', 'Semester' => '1st'],
+                    ['Name' => 'Henry', 'Age' => '200', 'Subject' => 'Science', 'Score' => '65', 'Grade' => 'D', 'Semester' => '1st'],
+                    ['Name' => 'Ivy', 'Age' => '19', 'Subject' => 'English', 'Score' => '', 'Grade' => '', 'Semester' => '2nd'],
+                    ['Name' => '  bob  ', 'Age' => '21', 'Subject' => 'math', 'Score' => '78', 'Grade' => 'b', 'Semester' => '1st'],
+                    ['Name' => 'Jack', 'Age' => '-5', 'Subject' => 'Science', 'Score' => '55', 'Grade' => 'F', 'Semester' => '2nd'],
+                ],
+            ],
+        ];
+
+        $created = [];
+        foreach ($samples as $sample) {
+            $profile = $this->generateProfile($sample['headers'], $sample['data']);
+            $created[] = Dataset::create([
+                'name' => $sample['name'],
+                'user_id' => request()->user()->id,
+                'original_filename' => $sample['filename'],
+                'file_path' => '',
+                'file_type' => 'csv',
+                'row_count' => count($sample['data']),
+                'column_count' => count($sample['headers']),
+                'headers' => $sample['headers'],
+                'original_data' => $sample['data'],
+                'cleaned_data' => null,
+                'cleaning_log' => null,
+                'profile' => $profile,
+            ]);
+        }
+
+        return redirect()->route('datasets.show', end($created))
+            ->with('toast', ['type' => 'success', 'message' => count($created).' sample datasets loaded successfully.']);
+    }
+
+    public function renameColumns(Request $request, Dataset $dataset): RedirectResponse
+    {
+        $request->validate([
+            'columns' => ['required', 'array'],
+            'columns.*' => ['required', 'string', 'max:255'],
+        ]);
+
+        $newHeaders = array_values($request->input('columns'));
+
+        if (count($newHeaders) !== count($dataset->headers)) {
+            return redirect()->back()->with('toast', ['type' => 'error', 'message' => 'Column count mismatch.']);
+        }
+
+        $oldHeaders = $dataset->headers;
+        $renamedData = array_map(function ($row) use ($oldHeaders, $newHeaders) {
+            $newRow = [];
+            foreach ($oldHeaders as $i => $oldH) {
+                $newRow[$newHeaders[$i]] = $row[$oldH] ?? null;
+            }
+
+            return $newRow;
+        }, $dataset->original_data);
+
+        $cleanedData = null;
+        if ($dataset->cleaned_data) {
+            $cleanedData = array_map(function ($row) use ($oldHeaders, $newHeaders) {
+                $newRow = [];
+                foreach ($oldHeaders as $i => $oldH) {
+                    $newRow[$newHeaders[$i]] = $row[$oldH] ?? null;
+                }
+
+                return $newRow;
+            }, $dataset->cleaned_data);
+        }
+
+        $profile = $this->generateProfile($newHeaders, $renamedData);
+
+        $dataset->update([
+            'headers' => $newHeaders,
+            'original_data' => $renamedData,
+            'cleaned_data' => $cleanedData,
+            'profile' => $profile,
+        ]);
+
+        return redirect()->back()->with('toast', ['type' => 'success', 'message' => 'Columns renamed successfully.']);
+    }
+
+    public function reorderColumns(Request $request, Dataset $dataset): RedirectResponse
+    {
+        $request->validate([
+            'order' => ['required', 'array'],
+            'order.*' => ['required', 'string'],
+        ]);
+
+        $newOrder = $request->input('order');
+
+        if (count($newOrder) !== count($dataset->headers) || array_diff($newOrder, $dataset->headers)) {
+            return redirect()->back()->with('toast', ['type' => 'error', 'message' => 'Invalid column order.']);
+        }
+
+        $reorderRow = function ($row) use ($newOrder) {
+            $newRow = [];
+            foreach ($newOrder as $h) {
+                $newRow[$h] = $row[$h] ?? null;
+            }
+
+            return $newRow;
+        };
+
+        $reorderedData = array_map($reorderRow, $dataset->original_data);
+        $cleanedData = $dataset->cleaned_data ? array_map($reorderRow, $dataset->cleaned_data) : null;
+        $profile = $this->generateProfile($newOrder, $reorderedData);
+
+        $dataset->update([
+            'headers' => $newOrder,
+            'original_data' => $reorderedData,
+            'cleaned_data' => $cleanedData,
+            'profile' => $profile,
+        ]);
+
+        return redirect()->back()->with('toast', ['type' => 'success', 'message' => 'Columns reordered successfully.']);
+    }
+
+    public function exportReport(Dataset $dataset): \Illuminate\Http\Response
+    {
+        $originalData = $dataset->original_data;
+        $cleanedData = $dataset->cleaned_data ?? $originalData;
+        $headers = $dataset->headers;
+        $log = $dataset->cleaning_log ?? [];
+
+        $originalQuality = $this->calculateQualityScore($headers, $originalData);
+        $cleanedQuality = $this->calculateQualityScore($headers, $cleanedData);
+        $insights = $this->generateInsights($headers, $cleanedData);
+
+        $html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cleaning Report - '.e($dataset->name).'</title>';
+        $html .= '<style>
+            body { font-family: DejaVu Sans, sans-serif; padding: 30px; color: #1a1a2e; font-size: 12px; }
+            h1 { color: #16213e; border-bottom: 3px solid #0f3460; padding-bottom: 8px; font-size: 22px; }
+            h2 { color: #0f3460; margin-top: 25px; font-size: 16px; }
+            .scores { text-align: center; margin: 15px 0; }
+            .score-card { display: inline-block; padding: 15px 25px; border-radius: 8px; margin: 5px; text-align: center; }
+            .score-before { background: #fee2e2; border: 2px solid #fca5a5; }
+            .score-after { background: #dcfce7; border: 2px solid #86efac; }
+            .score-value { font-size: 36px; font-weight: bold; }
+            .score-before .score-value { color: #dc2626; }
+            .score-after .score-value { color: #16a34a; }
+            .arrow { display: inline-block; padding: 15px; font-size: 24px; vertical-align: middle; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            th, td { padding: 6px 10px; border: 1px solid #e2e8f0; text-align: left; font-size: 11px; }
+            th { background: #f1f5f9; font-weight: 600; }
+            .log-item { padding: 6px 10px; margin: 3px 0; border-left: 3px solid #3b82f6; background: #f8fafc; }
+            .log-type { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 500; background: #dbeafe; color: #1e40af; }
+            .reason { color: #64748b; font-size: 10px; font-style: italic; margin-top: 3px; }
+            .stats-row { overflow: hidden; margin: 10px 0; }
+            .stat-box { float: left; width: 31%; margin-right: 2%; padding: 12px; border-radius: 6px; background: #f8fafc; border: 1px solid #e2e8f0; text-align: center; }
+            .stat-value { font-size: 20px; font-weight: bold; color: #0f3460; }
+            .stat-label { font-size: 10px; color: #64748b; text-transform: uppercase; }
+            .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; text-align: center; color: #94a3b8; font-size: 10px; }
+        </style></head><body>';
+
+        $html .= '<h1>Data Cleaning Report</h1>';
+        $html .= '<p><strong>Dataset:</strong> '.e($dataset->name).'</p>';
+        $html .= '<p><strong>Generated:</strong> '.now()->format('F j, Y g:i A').'</p>';
+        $html .= '<p><strong>Original File:</strong> '.e($dataset->original_filename).'</p>';
+
+        $html .= '<h2>Data Quality Score</h2>';
+        $html .= '<div class="scores">';
+        $html .= '<div class="score-card score-before"><div class="score-value">'.$originalQuality['overall'].'%</div><div>Before Cleaning</div></div>';
+        $html .= '<span class="arrow">→</span>';
+        $html .= '<div class="score-card score-after"><div class="score-value">'.$cleanedQuality['overall'].'%</div><div>After Cleaning</div></div>';
+        $html .= '</div>';
+
+        $html .= '<table><thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Change</th></tr></thead><tbody>';
+        foreach (['completeness', 'consistency', 'validity', 'uniqueness'] as $metric) {
+            $before = $originalQuality[$metric];
+            $after = $cleanedQuality[$metric];
+            $change = $after - $before;
+            $changeStr = ($change >= 0 ? '+' : '').$change.'%';
+            $html .= '<tr><td>'.ucfirst($metric)."</td><td>{$before}%</td><td>{$after}%</td><td>{$changeStr}</td></tr>";
+        }
+        $html .= '</tbody></table>';
+
+        $html .= '<h2>Dataset Summary</h2>';
+        $html .= '<div class="stats-row">';
+        $html .= '<div class="stat-box"><div class="stat-label">Original Rows</div><div class="stat-value">'.count($originalData).'</div></div>';
+        $html .= '<div class="stat-box"><div class="stat-label">Cleaned Rows</div><div class="stat-value">'.count($cleanedData).'</div></div>';
+        $html .= '<div class="stat-box"><div class="stat-label">Columns</div><div class="stat-value">'.count($headers).'</div></div>';
+        $html .= '</div>';
+
+        if (! empty($log)) {
+            $html .= '<h2>Cleaning Steps Applied</h2>';
+            foreach ($log as $entry) {
+                if ($entry['type'] === 'summary') {
+                    continue;
+                }
+                $html .= '<div class="log-item">';
+                $html .= '<span class="log-type">'.e(str_replace('_', ' ', $entry['type'])).'</span> ';
+                $html .= e($entry['message']);
+                if (! empty($entry['reason'])) {
+                    $html .= '<div class="reason">Why: '.e($entry['reason']).'</div>';
+                }
+                $html .= '</div>';
+            }
+        }
+
+        if (! empty($insights['interpretations'])) {
+            $html .= '<h2>Key Insights</h2><ul>';
+            foreach ($insights['interpretations'] as $insight) {
+                $html .= '<li>'.e($insight).'</li>';
+            }
+            $html .= '</ul>';
+        }
+
+        if (! empty($insights['summary'])) {
+            $html .= '<h2>Column Statistics</h2>';
+            $html .= '<table><thead><tr><th>Column</th><th>Mean</th><th>Median</th><th>Std Dev</th><th>Min</th><th>Max</th></tr></thead><tbody>';
+            foreach ($insights['summary'] as $col => $stats) {
+                $html .= '<tr><td>'.e($col)."</td><td>{$stats['mean']}</td><td>{$stats['median']}</td><td>{$stats['std_dev']}</td><td>{$stats['min']}</td><td>{$stats['max']}</td></tr>";
+            }
+            $html .= '</tbody></table>';
+        }
+
+        $html .= '<div class="footer">Generated by InsightFlow — Data Cleaning & Analytics System</div>';
+        $html .= '</body></html>';
+
+        $filename = str_replace(' ', '_', $dataset->name).'_cleaning_report.pdf';
+
+        $pdf = Pdf::loadHTML($html)->setPaper('a4', 'portrait');
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * @param  array<int, string>  $headers
+     * @param  array<int, array<string, mixed>>  $data
+     * @return array<string, int>
+     */
+    private function calculateQualityScore(array $headers, array $data): array
+    {
+        $totalCells = count($data) * count($headers);
+        if ($totalCells === 0) {
+            return ['overall' => 0, 'completeness' => 0, 'consistency' => 0, 'validity' => 0, 'uniqueness' => 0];
+        }
+
+        // Completeness: % of non-empty cells
+        $filled = 0;
+        foreach ($data as $row) {
+            foreach ($headers as $h) {
+                if (isset($row[$h]) && $row[$h] !== '' && $row[$h] !== null) {
+                    $filled++;
+                }
+            }
+        }
+        $completeness = round(($filled / $totalCells) * 100);
+
+        // Consistency: % of text columns with consistent casing/formatting
+        $consistentCols = 0;
+        $textCols = 0;
+        foreach ($headers as $h) {
+            $values = array_filter(array_column($data, $h), fn ($v) => $v !== null && $v !== '' && ! is_numeric($v));
+            if (count($values) < 2) {
+                continue;
+            }
+            $textCols++;
+            $lowered = array_map(fn ($v) => strtolower(trim((string) $v)), $values);
+            $uniqueOriginal = count(array_unique($values));
+            $uniqueLowered = count(array_unique($lowered));
+            if ($uniqueOriginal === $uniqueLowered) {
+                $consistentCols++;
+            }
+        }
+        $consistency = $textCols > 0 ? round(($consistentCols / $textCols) * 100) : 100;
+
+        // Validity: % of values that are valid (numeric cols have actual numbers, no negatives in price cols)
+        $validCells = 0;
+        $checkedCells = 0;
+        foreach ($headers as $h) {
+            $lowerH = strtolower($h);
+            foreach ($data as $row) {
+                $val = $row[$h] ?? null;
+                if ($val === null || $val === '') {
+                    continue;
+                }
+                $checkedCells++;
+                $isValid = true;
+                if (in_array($lowerH, ['age', 'edad', 'years'])) {
+                    $isValid = is_numeric($val) && (float) $val >= 0 && (float) $val <= 150;
+                } elseif (in_array($lowerH, ['price', 'amount', 'cost', 'salary', 'revenue'])) {
+                    $isValid = is_numeric($val) && (float) $val >= 0;
+                }
+                if ($isValid) {
+                    $validCells++;
+                }
+            }
+        }
+        $validity = $checkedCells > 0 ? round(($validCells / $checkedCells) * 100) : 100;
+
+        // Uniqueness: 100 - duplicate row %
+        $uniqueRows = count(array_unique(array_map('serialize', $data)));
+        $uniqueness = count($data) > 0 ? round(($uniqueRows / count($data)) * 100) : 100;
+
+        $overall = round(($completeness + $consistency + $validity + $uniqueness) / 4);
+
+        return [
+            'overall' => $overall,
+            'completeness' => $completeness,
+            'consistency' => $consistency,
+            'validity' => $validity,
+            'uniqueness' => $uniqueness,
+        ];
+    }
+
     /**
      * @param  array<int, string>  $headers
      * @param  array<int, array<string, mixed>>  $data
@@ -971,6 +1308,7 @@ class DatasetController extends Controller
             'row_count' => count($data),
             'column_count' => count($headers),
             'columns' => [],
+            'quality_score' => $this->calculateQualityScore($headers, $data),
         ];
 
         foreach ($headers as $header) {

@@ -40,7 +40,17 @@
       "Bash(npx eslint:*)",
       "Bash(npx prettier:*)",
       "Bash(composer update:*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(/c/Users/Windows/.config/herd/bin/php84 artisan:*)",
+      "Bash(/c/Users/Windows/.config/herd/bin/php84/php.exe artisan:*)",
+      "Bash(/c/Users/Windows/.config/herd/bin/php84/php.exe:*)",
+      "Bash(xargs ls:*)",
+      "Bash(npx vite:*)",
+      "Bash(find:*)",
+      "Bash(where.exe php:*)",
+      "Read(//c/Users/Windows/.config/herd/**)",
+      "Bash(pip install:*)",
+      "Bash(pdftotext:*)"
     ]
   },
   "disabledMcpjsonServers": [

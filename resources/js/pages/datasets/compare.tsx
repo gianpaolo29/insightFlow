@@ -1,5 +1,5 @@
 import { AnimatePresence } from 'framer-motion';
-import { Download, GitCompareArrows } from 'lucide-react';
+import { Download, FileText, GitCompareArrows } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import {
     AnimatedCard,
@@ -23,6 +23,15 @@ import DatasetLayout from '@/layouts/dataset-layout';
 type CleaningLog = {
     type: string;
     message: string;
+    reason?: string;
+};
+
+type QualityScore = {
+    overall: number;
+    completeness: number;
+    consistency: number;
+    validity: number;
+    uniqueness: number;
 };
 
 type Dataset = {
@@ -38,13 +47,15 @@ type Dataset = {
 
 type Props = {
     dataset: Dataset;
+    originalQuality: QualityScore;
+    cleanedQuality: QualityScore | null;
 };
 
 function serializeRow(row: Record<string, unknown>, headers: string[]): string {
     return headers.map((h) => String(row[h] ?? '')).join('|||');
 }
 
-export default function ComparePage({ dataset }: Props) {
+export default function ComparePage({ dataset, originalQuality, cleanedQuality }: Props) {
     const [tab, setTab] = useState<'side-by-side' | 'original' | 'cleaned'>(
         'side-by-side',
     );
@@ -204,10 +215,18 @@ export default function ComparePage({ dataset }: Props) {
                                 Excel
                             </a>
                         </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a
+                                href={`/datasets/${dataset.id}/export-report`}
+                            >
+                                <FileText className="mr-1.5 size-4" />
+                                Export Report
+                            </a>
+                        </Button>
                     </div>
                 </div>
 
-                <StaggerContainer className="grid grid-cols-3 gap-3 sm:gap-4">
+                <StaggerContainer className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <StaggerItem>
                         <AnimatedCard className="h-full">
                             <Card className="h-full">
@@ -254,6 +273,58 @@ export default function ComparePage({ dataset }: Props) {
                     </StaggerItem>
                 </StaggerContainer>
 
+                {/* Data Quality Scores */}
+                {cleanedQuality && (
+                    <FadeIn delay={0.15}>
+                        <Card>
+                            <CardHeader className="px-4 sm:px-6">
+                                <CardTitle>Data Quality Score</CardTitle>
+                                <CardDescription>
+                                    Quality comparison before and after cleaning
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="px-4 sm:px-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950/30">
+                                        <p className="text-xs text-red-600 dark:text-red-400 sm:text-sm">
+                                            Before
+                                        </p>
+                                        <p className="text-2xl font-bold text-red-700 dark:text-red-300 sm:text-3xl">
+                                            {originalQuality.overall}%
+                                        </p>
+                                    </div>
+                                    <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/30">
+                                        <p className="text-xs text-green-600 dark:text-green-400 sm:text-sm">
+                                            After
+                                        </p>
+                                        <p className="text-2xl font-bold text-green-700 dark:text-green-300 sm:text-3xl">
+                                            {cleanedQuality.overall}%
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
+                                    {(['completeness', 'consistency', 'validity', 'uniqueness'] as const).map((metric) => (
+                                        <div key={metric} className="rounded-lg border p-3">
+                                            <p className="text-xs font-medium capitalize text-muted-foreground">
+                                                {metric}
+                                            </p>
+                                            <div className="mt-1 flex items-baseline gap-2">
+                                                <span className="text-sm text-red-600 dark:text-red-400">
+                                                    {originalQuality[metric]}%
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">&rarr;</span>
+                                                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                                                    {cleanedQuality[metric]}%
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </FadeIn>
+                )}
+
                 {/* Cleaning Log */}
                 {log.length > 0 && (
                     <FadeIn delay={0.2}>
@@ -266,7 +337,7 @@ export default function ComparePage({ dataset }: Props) {
                                     <ul className="space-y-2">
                                         {log.map((entry, i) => (
                                             <StaggerItem key={i}>
-                                                <li className="flex flex-col gap-1 text-sm sm:flex-row sm:items-start sm:gap-2">
+                                                <li className="flex flex-col gap-1 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/50 sm:flex-row sm:items-start sm:gap-2">
                                                     <Badge
                                                         variant="outline"
                                                         className="w-fit shrink-0"
@@ -276,7 +347,14 @@ export default function ComparePage({ dataset }: Props) {
                                                             ' ',
                                                         )}
                                                     </Badge>
-                                                    <span>{entry.message}</span>
+                                                    <div>
+                                                        <span>{entry.message}</span>
+                                                        {entry.reason && (
+                                                            <p className="mt-0.5 border-l-2 border-muted-foreground/30 pl-2 text-xs italic text-muted-foreground">
+                                                                Why: {entry.reason}
+                                                            </p>
+                                                        )}
+                                                    </div>
                                                 </li>
                                             </StaggerItem>
                                         ))}
@@ -518,16 +596,21 @@ function DataTable({
                                         String(originalData[i][h] ?? '') !==
                                             String(row[h] ?? '');
 
+                                    const originalValue = changed
+                                        ? String(originalData![i][h] ?? '')
+                                        : undefined;
+
                                     return (
                                         <td
                                             key={h}
-                                            className={`max-w-[200px] truncate px-3 py-1.5 whitespace-nowrap ${
+                                            className={`max-w-[100px] sm:max-w-[200px] truncate px-3 py-1.5 whitespace-nowrap ${
                                                 isRemoved
                                                     ? 'text-rose-500 line-through'
                                                     : changed
-                                                      ? 'animate-pulse bg-chart-4/20 font-medium'
+                                                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 font-medium'
                                                       : ''
                                             }`}
+                                            title={changed ? `Original: ${originalValue}` : undefined}
                                         >
                                             {row[h] != null
                                                 ? String(row[h])

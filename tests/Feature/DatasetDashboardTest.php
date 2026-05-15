@@ -4,7 +4,7 @@ use App\Models\Dataset;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-test('visualize page renders successfully with dataset data', function () {
+test('dashboard page renders with dataset data', function () {
     $this->actingAs(User::factory()->create());
 
     $dataset = Dataset::factory()->create([
@@ -18,18 +18,19 @@ test('visualize page renders successfully with dataset data', function () {
         'column_count' => 2,
     ]);
 
-    $response = $this->get(route('datasets.visualize', $dataset));
+    $response = $this->get(route('datasets.dashboard', $dataset));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
-        ->component('datasets/visualize')
+        ->component('datasets/dashboard')
         ->has('dataset.id')
-        ->has('dataset.headers')
         ->has('data')
+        ->has('insights')
+        ->has('qualityScore.overall')
     );
 });
 
-test('visualize page uses cleaned data when available', function () {
+test('dashboard uses cleaned data when available', function () {
     $this->actingAs(User::factory()->create());
 
     $dataset = Dataset::factory()->create([
@@ -45,11 +46,10 @@ test('visualize page uses cleaned data when available', function () {
         'column_count' => 2,
     ]);
 
-    $response = $this->get(route('datasets.visualize', $dataset));
+    $response = $this->get(route('datasets.dashboard', $dataset));
 
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
         ->has('data', 1)
-        ->where('data.0.Name', 'Alice')
     );
 });

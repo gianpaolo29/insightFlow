@@ -157,10 +157,8 @@ export default function UploadPage({
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [uploading, setUploading] = useState(false);
     const { data, setData, processing, errors, reset } = useForm<{
-        name: string;
         files: File[];
     }>({
-        name: '',
         files: [],
     });
 
@@ -179,6 +177,7 @@ export default function UploadPage({
     const [showRelationshipForm, setShowRelationshipForm] = useState(false);
     const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
     const [unlinkTarget, setUnlinkTarget] = useState<number | null>(null);
+    const [loadingSample, setLoadingSample] = useState(false);
 
     function handleFilesChange(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files ?? []);
@@ -199,11 +198,6 @@ export default function UploadPage({
     function handleSubmit(e: FormEvent) {
         e.preventDefault();
 
-        if (!data.name.trim()) {
-            toast.error('Please enter a dataset name.');
-            return;
-        }
-
         if (selectedFiles.length === 0) {
             toast.error('Please select at least one file to upload.');
             return;
@@ -212,7 +206,7 @@ export default function UploadPage({
         setUploading(true);
         router.post(
             '/datasets/upload',
-            { name: data.name, files: selectedFiles },
+            { files: selectedFiles },
             {
                 forceFormData: true,
                 onFinish: () => setUploading(false),
@@ -353,7 +347,7 @@ export default function UploadPage({
                 {/* Features Grid */}
                 {!dataset && (
                     <FadeIn delay={0.1}>
-                        <StaggerContainer className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                        <StaggerContainer className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                             {features.map((feature) => {
                                 const Icon = feature.icon;
 
@@ -387,7 +381,7 @@ export default function UploadPage({
                 {/* Upload Form */}
                 <FadeIn delay={dataset ? 0.05 : 0.2}>
                     <Card className="overflow-hidden border-border/40 shadow-sm">
-                        <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
+                        <div className="h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500" />
                         <CardHeader className="px-4 pb-4 sm:px-6">
                             <CardTitle className="flex items-center gap-2">
                                 <div className="flex size-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white">
@@ -406,25 +400,6 @@ export default function UploadPage({
                                 className="flex flex-col gap-4"
                             >
                                 <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
-                                    <div className="min-w-0 flex-1">
-                                        <Label htmlFor="name">
-                                            Dataset Name
-                                        </Label>
-                                        <Input
-                                            id="name"
-                                            value={data.name}
-                                            onChange={(e) =>
-                                                setData('name', e.target.value)
-                                            }
-                                            placeholder="My Dataset"
-                                            className="mt-1"
-                                        />
-                                        {errors.name && (
-                                            <p className="mt-1 text-sm text-destructive">
-                                                {errors.name}
-                                            </p>
-                                        )}
-                                    </div>
                                     <div className="min-w-0 flex-1">
                                         <Label htmlFor="files">
                                             Files (CSV, XLSX) — select multiple
@@ -461,7 +436,7 @@ export default function UploadPage({
                                     <Button
                                         type="submit"
                                         disabled={uploading}
-                                        className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md transition-shadow hover:from-blue-600 hover:to-purple-700 hover:shadow-lg sm:w-auto"
+                                        className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-md transition-shadow hover:from-blue-600 hover:to-purple-700 hover:shadow-lg sm:w-auto"
                                     >
                                         <Upload className="size-4" />
                                         {uploading ? 'Uploading...' : 'Upload'}
@@ -477,7 +452,7 @@ export default function UploadPage({
                                                 className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-xs"
                                             >
                                                 <FileUp className="size-3 text-muted-foreground" />
-                                                <span className="max-w-[200px] truncate">
+                                                <span className="max-w-[120px] sm:max-w-[200px] truncate">
                                                     {file.name}
                                                 </span>
                                                 <span className="text-muted-foreground">
@@ -511,6 +486,39 @@ export default function UploadPage({
                         </CardContent>
                     </Card>
                 </FadeIn>
+
+                {/* Load Sample Data */}
+                {!dataset && (
+                    <FadeIn delay={0.25}>
+                        <div className="flex items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-3">
+                            <p className="flex-1 text-sm text-muted-foreground">
+                                No data to upload? Try with built-in sample
+                                datasets to explore the platform.
+                            </p>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={loadingSample}
+                                onClick={() => {
+                                    setLoadingSample(true);
+                                    router.post(
+                                        '/datasets/sample',
+                                        {},
+                                        {
+                                            onFinish: () =>
+                                                setLoadingSample(false),
+                                        },
+                                    );
+                                }}
+                            >
+                                <Database className="size-4" />
+                                {loadingSample
+                                    ? 'Loading...'
+                                    : 'Load Sample Data'}
+                            </Button>
+                        </div>
+                    </FadeIn>
+                )}
 
                 {/* Dataset Relationships */}
                 {dataset && (

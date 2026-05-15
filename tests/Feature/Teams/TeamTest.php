@@ -301,5 +301,5 @@ test('users cannot switch to team they dont belong to', function () {
 test('guests cannot access teams', function () {
     $response = $this->get(route('teams.index'));
 
-    $response->assertRedirect(route('login'));
+    $response->assertRedirect('/welcome');
 });

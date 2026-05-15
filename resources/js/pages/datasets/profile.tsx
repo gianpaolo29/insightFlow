@@ -38,10 +38,19 @@ type ColumnProfile = {
     sum?: number;
 };
 
+type QualityScore = {
+    overall: number;
+    completeness: number;
+    consistency: number;
+    validity: number;
+    uniqueness: number;
+};
+
 type Profile = {
     row_count: number;
     column_count: number;
     columns: Record<string, ColumnProfile>;
+    quality_score: QualityScore;
 };
 
 type Dataset = {
@@ -93,6 +102,31 @@ const statCards = [
             ),
     },
 ] as const;
+
+function qualityColor(value: number): string {
+    if (value >= 80) return 'text-emerald-500';
+    if (value >= 60) return 'text-amber-500';
+    return 'text-red-500';
+}
+
+function qualityStroke(value: number): string {
+    if (value >= 80) return 'stroke-emerald-500';
+    if (value >= 60) return 'stroke-amber-500';
+    return 'stroke-red-500';
+}
+
+function qualityBarColor(value: number): string {
+    if (value >= 80) return 'bg-emerald-500';
+    if (value >= 60) return 'bg-amber-500';
+    return 'bg-destructive';
+}
+
+const qualityMetrics: { key: keyof Omit<QualityScore, 'overall'>; label: string; description: string }[] = [
+    { key: 'completeness', label: 'Completeness', description: 'How many cells are filled' },
+    { key: 'consistency', label: 'Consistency', description: 'Consistent formatting across text columns' },
+    { key: 'validity', label: 'Validity', description: 'No impossible values like negative prices' },
+    { key: 'uniqueness', label: 'Uniqueness', description: 'No duplicate rows' },
+];
 
 function TypeBadge({ type }: { type: string }) {
     const config: Record<
@@ -192,8 +226,105 @@ export default function ProfilePage({ dataset }: Props) {
                     })}
                 </StaggerContainer>
 
+                {/* Data Quality Score */}
+                <FadeIn delay={0.15}>
+                    <Card>
+                        <CardHeader className="px-4 sm:px-6">
+                            <CardTitle className="flex items-center gap-2">
+                                <CheckCircle className="size-5 text-emerald-500" />
+                                Data Quality Score
+                            </CardTitle>
+                            <CardDescription>
+                                Overall assessment of your dataset's quality
+                                across key dimensions.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="px-4 sm:px-6">
+                            <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
+                                {/* Circular ring */}
+                                <div className="flex flex-col items-center gap-2">
+                                    <div className="relative size-36">
+                                        <svg
+                                            className="-rotate-90"
+                                            viewBox="0 0 120 120"
+                                            width="144"
+                                            height="144"
+                                        >
+                                            <circle
+                                                cx="60"
+                                                cy="60"
+                                                r="50"
+                                                fill="none"
+                                                strokeWidth="10"
+                                                className="stroke-muted"
+                                            />
+                                            <circle
+                                                cx="60"
+                                                cy="60"
+                                                r="50"
+                                                fill="none"
+                                                strokeWidth="10"
+                                                strokeLinecap="round"
+                                                strokeDasharray={`${(profile.quality_score.overall / 100) * 2 * Math.PI * 50} ${2 * Math.PI * 50}`}
+                                                className={qualityStroke(profile.quality_score.overall)}
+                                            />
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <CountUp
+                                                value={profile.quality_score.overall}
+                                                className={`text-3xl font-bold ${qualityColor(profile.quality_score.overall)}`}
+                                            />
+                                            <span className="text-xs text-muted-foreground">
+                                                / 100
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <span className="text-sm font-medium text-muted-foreground">
+                                        Overall Score
+                                    </span>
+                                </div>
+
+                                {/* Sub-metric bars */}
+                                <div className="w-full flex-1 space-y-4">
+                                    {qualityMetrics.map((metric) => {
+                                        const value = profile.quality_score[metric.key];
+                                        return (
+                                            <div
+                                                key={metric.key}
+                                                className="space-y-1"
+                                            >
+                                                <div className="flex items-center justify-between text-sm">
+                                                    <div>
+                                                        <span className="font-medium">
+                                                            {metric.label}
+                                                        </span>
+                                                        <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">
+                                                            {metric.description}
+                                                        </span>
+                                                    </div>
+                                                    <span
+                                                        className={`font-semibold ${qualityColor(value)}`}
+                                                    >
+                                                        {value}%
+                                                    </span>
+                                                </div>
+                                                <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+                                                    <AnimatedProgressBar
+                                                        percentage={value}
+                                                        colorClass={qualityBarColor(value)}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </FadeIn>
+
                 {/* Column Details */}
-                <FadeIn delay={0.2}>
+                <FadeIn delay={0.3}>
                     <Card>
                         <CardHeader className="px-4 sm:px-6">
                             <CardTitle className="flex items-center gap-2">
@@ -388,7 +519,7 @@ export default function ProfilePage({ dataset }: Props) {
                 </FadeIn>
 
                 {/* Missing Values Visualization */}
-                <FadeIn delay={0.4}>
+                <FadeIn delay={0.5}>
                     <Card>
                         <CardHeader className="px-4 sm:px-6">
                             <CardTitle className="flex items-center gap-2">
@@ -416,7 +547,7 @@ export default function ProfilePage({ dataset }: Props) {
                                             key={col.name}
                                             className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-4"
                                         >
-                                            <span className="w-32 truncate text-sm font-medium">
+                                            <span className="w-24 truncate text-sm font-medium sm:w-32">
                                                 {col.name}
                                             </span>
                                             <div className="flex flex-1 items-center gap-2 sm:gap-4">

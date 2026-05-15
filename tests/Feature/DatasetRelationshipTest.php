@@ -1,11 +1,14 @@
 <?php
 
 use App\Models\Dataset;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
 test('can add a relationship between datasets', function () {
+    $this->actingAs(User::factory()->create());
+
     $parent = Dataset::factory()->create();
     $child = Dataset::factory()->create();
 
@@ -25,6 +28,8 @@ test('can add a relationship between datasets', function () {
 });
 
 test('can remove a relationship between datasets', function () {
+    $this->actingAs(User::factory()->create());
+
     $parent = Dataset::factory()->create();
     $child = Dataset::factory()->create();
 
@@ -43,6 +48,8 @@ test('can remove a relationship between datasets', function () {
 });
 
 test('cannot add duplicate relationship', function () {
+    $this->actingAs(User::factory()->create());
+
     $parent = Dataset::factory()->create();
     $child = Dataset::factory()->create();
 
@@ -62,6 +69,8 @@ test('cannot add duplicate relationship', function () {
 });
 
 test('dataset model has relationship methods', function () {
+    $this->actingAs(User::factory()->create());
+
     $parent = Dataset::factory()->create();
     $child = Dataset::factory()->create();
 
@@ -78,6 +87,8 @@ test('dataset model has relationship methods', function () {
 });
 
 test('relationship validation rejects invalid type', function () {
+    $this->actingAs(User::factory()->create());
+
     $parent = Dataset::factory()->create();
     $child = Dataset::factory()->create();
 

@@ -729,7 +729,7 @@ export default function VisualizePage({ dataset, data }: Props) {
                 {/* Summary Stats */}
                 {stats && (
                     <FadeIn delay={0.05}>
-                        <StaggerContainer className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                        <StaggerContainer className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                             {[
                                 { label: 'Count', value: stats.count },
                                 { label: 'Sum', value: stats.sum },
